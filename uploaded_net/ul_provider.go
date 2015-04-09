@@ -96,7 +96,7 @@ func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
 				links = append(links, fmt.Sprintf("http://uploaded.net/file/%s", attr))
 			}
 		})
-		log.Debugf("Resolved more links: %v", links)
+		log.Debugf("Resolved more links: %v", len(links))
 		return action.Bundle(links)
 	}
 	log.Errorf("[uploaded.net] Don't know what to do with response from: %v", r.Request.URL)
