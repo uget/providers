@@ -50,14 +50,21 @@ func (p Provider) Login(d *core.Downloader) {
 	p.manager().Accounts(&accs)
 	for _, acc := range accs {
 		if acc.Premium {
-			d.Client.Jar.SetCookies(u, []*http.Cookie{
-				{
-					Name:   "login",
-					Value:  acc.LoginCookie,
-					Domain: "uploaded.net",
-					Path:   "/",
-				},
-			})
+			if acc.LoginCookie {
+				d.Client.Jar.SetCookies(u, []*http.Cookie{
+					{
+						Name:   "login",
+						Value:  acc.LoginCookie,
+						Domain: "uploaded.net",
+						Path:   "/",
+					},
+				})
+			} else if acc.Id != "" && acc.Password != "" {
+				login(d.Client, acc.Id, acc.Password)
+			} else {
+				log.Warnf("%s: Could not login with '%s' because no credentials were found", p.Name(), acc.Id)
+				continue
+			}
 			break
 		}
 	}
