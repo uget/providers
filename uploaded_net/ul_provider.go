@@ -50,7 +50,7 @@ func (p Provider) Login(d *core.Downloader) {
 	p.manager().Accounts(&accs)
 	for _, acc := range accs {
 		if acc.Premium {
-			if acc.LoginCookie {
+			if acc.LoginCookie != "" {
 				d.Client.Jar.SetCookies(u, []*http.Cookie{
 					{
 						Name:   "login",
