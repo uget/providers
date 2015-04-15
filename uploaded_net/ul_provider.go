@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	log "github.com/cihub/seelog"
+	log "github.com/Sirupsen/logrus"
 	"github.com/uget/uget/core"
 	"github.com/uget/uget/core/account"
 	"github.com/uget/uget/core/action"
