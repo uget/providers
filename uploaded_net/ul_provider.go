@@ -89,11 +89,11 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 
 func (p Provider) AddAccount(prompter core.Prompter) {
 	fields := []core.Field{
-		{"id", "username", false, ""},
+		{"username", "username", false, ""},
 		{"password", "password", true, ""},
 	}
 	values := prompter.Get(fields)
-	id := values["id"]
+	id := values["username"]
 	pw := values["password"]
 	// do the request
 	jar, _ := cookiejar.New(nil)
