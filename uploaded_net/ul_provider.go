@@ -6,7 +6,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/account"
 	"github.com/uget/uget/core/action"
 	"net/http"
 	"net/http/cookiejar"
@@ -40,14 +39,10 @@ func (p Provider) NewTemplate() interface{} {
 	return &Credentials{}
 }
 
-func (p Provider) manager() *account.Manager {
-	return account.ManagerFor("", p)
-}
-
-func (p Provider) Login(d *core.Downloader) {
+func (p Provider) Login(d *core.Downloader, manager *core.AccountManager) {
 	u, _ := url.Parse("http://uploaded.net")
 	var accs []Credentials
-	p.manager().Accounts(&accs)
+	manager.Accounts(&accs)
 	for _, acc := range accs {
 		if acc.Premium {
 			if acc.LoginCookie != "" {
@@ -86,7 +81,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 	return nil, errors.New("[uploaded.net] Could not find login cookie in response headers.")
 }
 
-func (p Provider) AddAccount(prompter core.Prompter) {
+func (p Provider) NewAccount(prompter core.Prompter) (string, interface{}, error) {
 	fields := []core.Field{
 		{"username", "username", false, ""},
 		{"password", "password", true, ""},
@@ -100,7 +95,7 @@ func (p Provider) AddAccount(prompter core.Prompter) {
 	cookie, err := login(client, id, pw)
 	_ = cookie
 	if err != nil {
-		prompter.Error(err.Error())
+		return "", nil, err
 	} else {
 		c := Credentials{
 			Id:          id,
@@ -108,8 +103,7 @@ func (p Provider) AddAccount(prompter core.Prompter) {
 			LoginCookie: cookie.Value,
 		}
 		fillAccountInfo(client, &c)
-		p.manager().AddAccount(c.Id, c)
-		prompter.Success()
+		return id, c, nil
 	}
 }
 

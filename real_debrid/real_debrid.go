@@ -2,9 +2,9 @@ package real_debrid
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/account"
 	"github.com/uget/uget/core/action"
 	"io/ioutil"
 	"net/http"
@@ -40,50 +40,48 @@ func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
 	return action.Next()
 }
 
-func (p Provider) manager() *account.Manager {
-	return account.ManagerFor("", p)
+/**
+ * Deprecated: use NewAccount instead.
+ */
+func (p Provider) manager() *core.AccountManager {
+	return core.AccountManagerFor("", p)
 }
 
-func (p Provider) AddAccount(prompter core.Prompter) {
+func (p Provider) NewAccount(prompter core.Prompter) (string, interface{}, error) {
 	fields := []core.Field{
 		{"apitoken", "Token (collect from https://real-debrid.com/apitoken)", true, ""},
 	}
 	tok := prompter.Get(fields)["apitoken"]
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", strings.Join([]string{apiBase, "user"}, "/"), nil)
-	if err != nil {
-		prompter.Error(err.Error())
-		return
-	}
-	req.Header.Add("Authorization", strings.Join([]string{"Bearer", tok}, " "))
-	if resp, err := client.Do(req); err == nil {
-		if resp.StatusCode != 200 {
-			prompter.Error(resp.Status)
-			return
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			prompter.Error(err.Error())
-			return
-		}
-		m := map[string]interface{}{}
-		err = json.Unmarshal([]byte(body), &m)
-		if err != nil {
-			prompter.Error(err.Error())
-			return
-		}
-		c := &Credentials{
-			m["username"].(string),
-			m["email"].(string),
-			int(m["points"].(float64)),
-			m["type"] == "premium",
-			time.Now().Add(time.Duration(m["premium"].(float64)) * time.Second),
-			tok,
-		}
-		p.manager().AddAccount(c.Username, c)
-		prompter.Success()
+	if req, err := http.NewRequest("GET", strings.Join([]string{apiBase, "user"}, "/"), nil); err != nil {
+		return "", nil, err
 	} else {
-		prompter.Error(err.Error())
+		req.Header.Add("Authorization", strings.Join([]string{"Bearer", tok}, " "))
+		if resp, err := client.Do(req); err == nil {
+			if resp.StatusCode != 200 {
+				return "", nil, errors.New(resp.Status)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return "", nil, err
+			}
+			m := map[string]interface{}{}
+			err = json.Unmarshal([]byte(body), &m)
+			if err != nil {
+				return "", nil, err
+			}
+			c := &Credentials{
+				m["username"].(string),
+				m["email"].(string),
+				int(m["points"].(float64)),
+				m["type"] == "premium",
+				time.Now().Add(time.Duration(m["premium"].(float64)) * time.Second),
+				tok,
+			}
+			return c.Username, c, nil
+		} else {
+			return "", nil, err
+		}
 	}
 }
 
