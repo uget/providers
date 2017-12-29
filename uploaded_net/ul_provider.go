@@ -62,7 +62,7 @@ func (p Provider) Login(d *core.Downloader) {
 			} else if acc.Id != "" && acc.Password != "" {
 				login(d.Client, acc.Id, acc.Password)
 			} else {
-				log.Warnf("%s: Could not login with '%s' because no credentials were found", p.Name(), acc.Id)
+				log.Warnf("[%s] Could not login with '%s' because no credentials were found", p.Name(), acc.Id)
 				continue
 			}
 			break
@@ -72,8 +72,7 @@ func (p Provider) Login(d *core.Downloader) {
 
 func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 	reader := strings.NewReader(fmt.Sprintf("id=%s&pw=%s", id, pw))
-	u, _ := url.Parse("https://uploaded.net/io/login")
-	req, _ := http.NewRequest("POST", u.String(), reader)
+	req, _ := http.NewRequest("POST", "https://uploaded.net/io/login", reader)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -84,7 +83,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 			return cookie, nil
 		}
 	}
-	return nil, errors.New("Could not find login cookie in response headers.")
+	return nil, errors.New("[uploaded.net] Could not find login cookie in response headers.")
 }
 
 func (p Provider) AddAccount(prompter core.Prompter) {
@@ -170,7 +169,7 @@ func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
 				links = append(links, fmt.Sprintf("http://uploaded.net/file/%s", attr))
 			}
 		})
-		log.Debugf("Resolved more links: %v", len(links))
+		log.Debugf("[uploaded.net] Resolved more links: %v", len(links))
 		return action.Bundle(links)
 	}
 	log.Errorf("[uploaded.net] Don't know what to do with response from: %v", r.Request.URL)
