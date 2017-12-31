@@ -3,10 +3,6 @@ package uploaded_net
 import (
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	log "github.com/Sirupsen/logrus"
-	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/action"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -14,6 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	log "github.com/Sirupsen/logrus"
+	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/action"
 )
 
 type Provider struct{}
@@ -31,11 +32,15 @@ type Credentials struct {
 	LoginCookie string    `json:"login_cookie" sensitive:"true"`
 }
 
+func (c Credentials) ID() string {
+	return c.Id
+}
+
 func (c Credentials) String() string {
 	return fmt.Sprintf("uploaded.net<id: %s, email: %s, premium: %v, expires: %v>", c.Id, c.Email, c.Premium, c.Expires)
 }
 
-func (p Provider) NewTemplate() interface{} {
+func (p Provider) NewTemplate() core.Account {
 	return &Credentials{}
 }
 
@@ -81,7 +86,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 	return nil, errors.New("[uploaded.net] Could not find login cookie in response headers.")
 }
 
-func (p Provider) NewAccount(prompter core.Prompter) (string, interface{}, error) {
+func (p Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"username", "username", false, ""},
 		{"password", "password", true, ""},
@@ -95,7 +100,7 @@ func (p Provider) NewAccount(prompter core.Prompter) (string, interface{}, error
 	cookie, err := login(client, id, pw)
 	_ = cookie
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	} else {
 		c := Credentials{
 			Id:          id,
@@ -103,7 +108,7 @@ func (p Provider) NewAccount(prompter core.Prompter) (string, interface{}, error
 			LoginCookie: cookie.Value,
 		}
 		fillAccountInfo(client, &c)
-		return id, c, nil
+		return c, nil
 	}
 }
 
