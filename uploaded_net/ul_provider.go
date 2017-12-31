@@ -25,7 +25,7 @@ type Provider struct{}
 var _ core.Accountant = Provider{}
 var _ core.Authenticator = Provider{}
 var _ core.Getter = Provider{}
-var _ core.Resolver = Provider{}
+var _ core.MultiResolver = Provider{}
 
 func (p Provider) Name() string {
 	return "uploaded.net"
