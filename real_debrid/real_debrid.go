@@ -13,16 +13,20 @@ import (
 	"github.com/uget/uget/core/action"
 )
 
-type Provider struct{}
-
 type Credentials struct {
 	Username string    `json:"username"`
 	Email    string    `json:"email"`
 	Points   int       `json:"fidelity"`
 	Premium  bool      `json:"premium"`
 	Expires  time.Time `json:"expires_at"`
-	ApiToken string    `json:"apitoken" sensitive:"true"`
+	APIToken string    `json:"apitoken" sensitive:"true"`
 }
+
+var _ core.Account = Credentials{} // verify that Credentials implements interface
+
+type Provider struct{}
+
+var _ core.Accountant = Provider{} // verify that Provider implements interface
 
 func (c Credentials) ID() string {
 	return c.Username

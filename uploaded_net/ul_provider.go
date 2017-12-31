@@ -1,8 +1,11 @@
 package uploaded_net
 
 import (
+	"crypto/sha1"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"hash"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -18,6 +21,11 @@ import (
 )
 
 type Provider struct{}
+
+var _ core.Accountant = Provider{}
+var _ core.Authenticator = Provider{}
+var _ core.Getter = Provider{}
+var _ core.Resolver = Provider{}
 
 func (p Provider) Name() string {
 	return "uploaded.net"
@@ -138,6 +146,89 @@ func fillAccountInfo(client *http.Client, c *Credentials) {
 	c.Expires = time.Now().Add(time.Duration(hours+(days+weeks*7)*24) * time.Hour)
 }
 
+func (p Provider) CanResolve(url *url.URL) bool {
+	return strings.HasSuffix(url.Host, "uploaded.net") ||
+		strings.HasSuffix(url.Host, "uploaded.to") ||
+		strings.HasSuffix(url.Host, "ul.to")
+}
+
+type file struct {
+	id     string
+	length int64
+	sha1   string
+	name   string
+	url    *url.URL
+}
+
+var _ core.File = file{}
+
+func (f file) URL() *url.URL {
+	return f.url
+}
+
+func (f file) Filename() string {
+	return f.name
+}
+
+func (f file) Length() int64 {
+	return f.length
+}
+
+func (f file) Checksum() (string, string, hash.Hash) {
+	return f.sha1, "SHA1", sha1.New()
+}
+
+func (p Provider) Resolve(urls []*url.URL) ([]core.File, error) {
+	body := "apikey=575de523-3d0e-411a-9ebc-af9c6fff8370"
+	i := 0
+	for _, url := range urls {
+		paths := strings.Split(url.Path, "/")[1:]
+		id := ""
+		if paths[0] == "file" {
+			id = paths[1]
+		} else if strings.HasSuffix(url.Host, "ul.to") {
+			id = paths[0]
+		} else if paths[0] == "f" || paths[0] == "folder" {
+			return nil, fmt.Errorf("folders not supported yet")
+		} else {
+			return nil, fmt.Errorf("can't handle %v", url)
+		}
+		body += fmt.Sprintf("&id_%d=%s", i, id)
+		i++
+	}
+	req, _ := http.NewRequest("POST", "https://uploaded.net/api/filemultiple", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	csv := csv.NewReader(resp.Body)
+	csv.FieldsPerRecord = 0
+	records, err := csv.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	fs := make([]core.File, 0, len(records))
+	for _, record := range records {
+		if record[0] == "offline" {
+			return nil, fmt.Errorf("file is offline")
+		} else if record[0] != "online" {
+			return nil, fmt.Errorf("file error: %v", record[0])
+		}
+		if len, err := strconv.ParseInt(record[2], 10, 0); err == nil {
+			id := record[1]
+			fs = append(fs, file{id, len, record[3], record[4], urlFrom(id)})
+		}
+	}
+	return fs, nil
+}
+
+func urlFrom(id string) *url.URL {
+	u, _ := url.Parse(fmt.Sprintf("https://uploaded.net/file/%s", id))
+	return u
+}
+
 func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
 	if !strings.HasSuffix(r.Request.URL.Host, "uploaded.net") {
 		return action.Next()
@@ -161,11 +252,11 @@ func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
 	} else if strings.HasPrefix(r.Request.URL.RequestURI(), "/folder/") {
 		doc, _ := goquery.NewDocumentFromResponse(r)
 		list := doc.Find("#fileList tbody > tr")
-		links := make([]string, 0, list.Size())
+		links := make([]*url.URL, 0, list.Size())
 		list.Each(func(i int, sel *goquery.Selection) {
 			attr, ok := sel.Attr("id")
 			if ok {
-				links = append(links, fmt.Sprintf("http://uploaded.net/file/%s", attr))
+				links = append(links, urlFrom(attr))
 			}
 		})
 		log.Debugf("[uploaded.net] Resolved more links: %v", len(links))
