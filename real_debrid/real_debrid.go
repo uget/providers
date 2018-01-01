@@ -50,7 +50,11 @@ func (p Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"apitoken", "Token (collect from https://real-debrid.com/apitoken)", true, ""},
 	}
-	tok := prompter.Get(fields)["apitoken"]
+	vals, err := prompter.Get(fields)
+	if err != nil {
+		return nil, err
+	}
+	tok := vals["apitoken"]
 	client := &http.Client{}
 	if req, err := http.NewRequest("GET", strings.Join([]string{apiBase, "user"}, "/"), nil); err != nil {
 		return nil, err

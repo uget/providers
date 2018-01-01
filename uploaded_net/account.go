@@ -76,16 +76,19 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 			return cookie, nil
 		}
 	}
-	return nil, errors.New("[uploaded.net] Could not find login cookie in response headers.")
+	return nil, errors.New("could not find login cookie in response headers")
 }
 
 func (p uploaded) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
-		{"username", "username", false, ""},
+		{"id", "id", false, ""},
 		{"password", "password", true, ""},
 	}
-	values := prompter.Get(fields)
-	id := values["username"]
+	values, err := prompter.Get(fields)
+	if err != nil {
+		return nil, err
+	}
+	id := values["id"]
 	pw := values["password"]
 	// do the request
 	jar, _ := cookiejar.New(nil)
