@@ -212,7 +212,7 @@ func (p Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	fs := make([]core.File, 0, len(records))
 	for _, record := range records {
 		if record[0] == "offline" {
-			return nil, fmt.Errorf("file is offline")
+			fs = append(fs, file{length: -1, url: urlFrom(record[1])})
 		} else if record[0] != "online" {
 			return nil, fmt.Errorf("file error: %v", record[0])
 		}
