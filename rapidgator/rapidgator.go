@@ -1,0 +1,146 @@
+package rapidgator
+
+import (
+	"crypto/md5"
+	"encoding/json"
+	"fmt"
+	"hash"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/uget/uget/core"
+)
+
+// Validations
+
+var _ core.SingleResolver = rapidgator{}
+
+var _ core.File = file{}
+
+type rapidgator struct{}
+
+type file struct {
+	filename string
+	size     int64
+	md5      string
+	url      *url.URL
+}
+type session struct {
+	sid     string
+	expires time.Time
+}
+
+var mtx = sync.Mutex{}
+var sess = session{}
+
+func (f file) URL() *url.URL {
+	return f.url
+}
+
+func (f file) Filename() string {
+	return f.filename
+}
+
+func (f file) Length() int64 {
+	return f.size
+}
+
+func (f file) Checksum() (string, string, hash.Hash) {
+	return f.md5, "MD5", md5.New()
+}
+
+const (
+	infoURL  = "https://rapidgator.net/api/file/info?sid=%s&url=%s"
+	loginURL = "https://rapidgator.net/api/user/login?username=%s&password=%s"
+	user     = "uget@dispostable.com"
+	password = "public8)"
+)
+
+func (r rapidgator) Name() string {
+	return "rapidgator.net"
+}
+
+func (r rapidgator) CanResolve(u *url.URL) bool {
+	return strings.HasSuffix(u.Host, "rapidgator.net")
+}
+
+func refreshSession(c *http.Client) error {
+	mtx.Lock()
+	defer mtx.Unlock()
+	if sess.expires.Before(time.Now()) {
+		m, code, err := request(c, fmt.Sprintf(loginURL, user, password))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("[rapidgator.net] status code %v when getting session key", code)
+		}
+		sess.sid = m["session_id"].(string)
+		sess.expires = time.Now().Add(5 * time.Minute)
+	}
+	return nil
+}
+
+func request(c *http.Client, url string) (map[string]interface{}, int, error) {
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, -1, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, -1, err
+	}
+	m := map[string]interface{}{}
+	err = json.Unmarshal(body, &m)
+	if err != nil {
+		return nil, -1, err
+	}
+	code := int(m["response_status"].(float64))
+	if code == 200 {
+		m = m["response"].(map[string]interface{})
+	}
+	return m, code, nil
+}
+
+func (r rapidgator) Resolve(u *url.URL) (core.File, error) {
+	c := &http.Client{}
+	// Double check -- because we want to spend as little time as possible in critical section
+	if sess.expires.Before(time.Now()) {
+		err := refreshSession(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+	f, code, err := request(c, fmt.Sprintf(infoURL, sess.sid, u.String()))
+	if code != 200 {
+		if code == 404 {
+			return file{size: -1, url: u}, nil
+		} else if code == 401 { // session expired already?
+			// thread unsafe but we don't care if multiple goroutines invalidate the session
+			sess.expires = time.Now().Add(-100 * time.Hour)
+			return r.Resolve(u)
+		}
+		return nil, fmt.Errorf("[rapidgator.net] status code %v", code)
+	}
+	size, err := strconv.ParseInt(f["size"].(string), 10, 0)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasSuffix(u.Path, ".html") {
+		u2, _ := url.Parse("/")
+		*u2 = *u
+		u2.Path = u2.Path[0 : len(u2.Path)-5]
+		u = u2
+	}
+	return file{f["filename"].(string), size, f["hash"].(string), u}, nil
+}
+
+func init() {
+	core.RegisterProvider(rapidgator{})
+}
