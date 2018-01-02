@@ -22,7 +22,7 @@ func (f file) URL() *url.URL {
 	return f.url
 }
 
-func (f file) Filename() string {
+func (f file) Name() string {
 	return f.name
 }
 

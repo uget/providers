@@ -2,31 +2,33 @@ package basic
 
 import (
 	"hash"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/action"
 )
 
-type basic struct{}
+type basic struct {
+	client *http.Client
+}
 
-var _ core.Getter = basic{}
+var _ core.Retriever = basic{}
 var _ core.SingleResolver = basic{}
 
 func (p basic) Name() string {
 	return "default"
 }
 
-func (p basic) Action(r *http.Response, d *core.Downloader) *action.Action {
-	if r.StatusCode != http.StatusOK {
-		return action.Deadend()
+func (p basic) Retrieve(f core.File) (io.ReadCloser, error) {
+	req, _ := http.NewRequest("GET", f.URL().String(), nil)
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
 	}
-	// TODO: Make action dependent on content type?
-	// ensure underlying body is indeed a file, and not a html page / etc.
-	return action.Goal()
+	return resp.Body, nil
 }
 
 type file struct {
@@ -41,7 +43,7 @@ func (f file) URL() *url.URL {
 	return f.url
 }
 
-func (f file) Filename() string {
+func (f file) Name() string {
 	return f.name
 
 }
@@ -52,6 +54,10 @@ func (f file) Length() int64 {
 
 func (f file) Checksum() (string, string, hash.Hash) {
 	return "", "", nil
+}
+
+func (p basic) CanRetrieve(core.File) uint {
+	return 1
 }
 
 func (p basic) CanResolve(*url.URL) bool {
@@ -89,5 +95,7 @@ func (p basic) Resolve(u *url.URL) (core.File, error) {
 }
 
 func init() {
-	core.RegisterProvider(basic{})
+	core.RegisterProvider(basic{
+		client: &http.Client{},
+	})
 }

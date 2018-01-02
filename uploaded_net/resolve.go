@@ -11,17 +11,17 @@ import (
 	"github.com/uget/uget/core"
 )
 
-func (p uploaded) CanResolve(url *url.URL) bool {
+func (p *uploadedNet) CanResolve(url *url.URL) bool {
 	return strings.HasSuffix(url.Host, "uploaded.net") ||
 		strings.HasSuffix(url.Host, "uploaded.to") ||
 		strings.HasSuffix(url.Host, "ul.to")
 }
 
-func (p uploaded) Resolve(urls []*url.URL) ([]core.File, error) {
+func (p *uploadedNet) Resolve(urls []*url.URL) ([]core.File, error) {
 	body := fmt.Sprintf("apikey=%s", apikey)
 	i := 0
 	for _, url := range urls {
-		paths := strings.Split(url.Path, "/")[1:]
+		paths := strings.Split(url.RequestURI(), "/")[1:]
 		id := ""
 		if paths[0] == "file" {
 			id = paths[1]

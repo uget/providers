@@ -49,7 +49,7 @@ func (f file) URL() *url.URL {
 	return f.url
 }
 
-func (f file) Filename() string {
+func (f file) Name() string {
 	return f.filename
 }
 
@@ -134,10 +134,13 @@ func (r rapidgator) Resolve(u *url.URL) (core.File, error) {
 		}
 	}
 	f, code, err := request(c, fmt.Sprintf(infoURL, session.sid, u.String()))
+	if err != nil {
+		return nil, err
+	}
 	if code != 200 {
 		if code == 404 {
 			return file{size: -1, url: u}, nil
-		} else if code == 401 { // session expired already?
+		} else if code == 403 { // session expired already?
 			// thread unsafe but we don't care if multiple goroutines invalidate the session
 			session.expires = time.Now().Add(-100 * time.Hour)
 			return r.Resolve(u)

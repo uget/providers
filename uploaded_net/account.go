@@ -33,34 +33,20 @@ func (c credentials) String() string {
 	return fmt.Sprintf("uploaded.net<id: %s, email: %s, premium: %v, expires: %v>", c.Name, c.Email, c.Premium, c.Expires)
 }
 
-func (p uploaded) NewTemplate() core.Account {
+func (p *uploadedNet) NewTemplate() core.Account {
 	return &credentials{}
 }
 
-func (p uploaded) Login(d *core.Downloader, manager *core.AccountManager) {
+func (p *uploadedNet) setCookie(cookie string) {
 	u, _ := url.Parse("http://uploaded.net")
-	var accs []credentials
-	manager.Accounts(&accs)
-	for _, acc := range accs {
-		if acc.Premium {
-			if acc.LoginCookie != "" {
-				d.Client.Jar.SetCookies(u, []*http.Cookie{
-					{
-						Name:   "login",
-						Value:  acc.LoginCookie,
-						Domain: "uploaded.net",
-						Path:   "/",
-					},
-				})
-			} else if acc.Name != "" && acc.Password != "" {
-				login(d.Client, acc.Name, acc.Password)
-			} else {
-				log.Warnf("[%s] Could not login with '%s' because no credentials were found", p.Name(), acc.Name)
-				continue
-			}
-			break
-		}
-	}
+	p.client.Jar.SetCookies(u, []*http.Cookie{
+		{
+			Name:   "login",
+			Value:  cookie,
+			Domain: "uploaded.net",
+			Path:   "/",
+		},
+	})
 }
 
 func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
@@ -79,7 +65,30 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 	return nil, errors.New("could not find login cookie in response headers")
 }
 
-func (p uploaded) NewAccount(prompter core.Prompter) (core.Account, error) {
+func (p *uploadedNet) login() error {
+	var accs []credentials
+	p.mgr.Accounts(&accs)
+	for _, acc := range accs {
+		if acc.Premium {
+			if acc.LoginCookie != "" {
+				p.setCookie(acc.LoginCookie)
+				return nil
+			} else if acc.Name != "" && acc.Password != "" {
+				cookie, err := login(p.client, acc.Name, acc.Password)
+				if err != nil {
+					return err
+				}
+				acc.LoginCookie = cookie.Value
+				p.setCookie(cookie.Value)
+				return nil
+			}
+			log.Warnf("[%s] Could not login with '%s' because no credentials were found", p.Name(), acc.Name)
+		}
+	}
+	return fmt.Errorf("no suitable account found")
+}
+
+func (p *uploadedNet) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"id", "id", false, ""},
 		{"password", "password", true, ""},

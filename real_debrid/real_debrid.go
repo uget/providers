@@ -10,10 +10,9 @@ import (
 	"time"
 
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/action"
 )
 
-type Credentials struct {
+type credentials struct {
 	Username string    `json:"username"`
 	Email    string    `json:"email"`
 	Points   int       `json:"fidelity"`
@@ -22,31 +21,27 @@ type Credentials struct {
 	APIToken string    `json:"apitoken" sensitive:"true"`
 }
 
-var _ core.Account = Credentials{} // verify that Credentials implements interface
+var _ core.Account = credentials{} // verify that credentials implements interface
 
-type Provider struct{}
+type realDebrid struct{}
 
-var _ core.Accountant = Provider{} // verify that Provider implements interface
+var _ core.Accountant = realDebrid{} // verify that realDebrid implements interface
 
-func (c Credentials) ID() string {
+func (c credentials) ID() string {
 	return c.Username
 }
 
-func (c Credentials) String() string {
+func (c credentials) String() string {
 	return fmt.Sprintf("real-debrid.com<username: %s, email: %s, premium: %v, fidelity: %v>", c.Username, c.Email, c.Premium, c.Points)
 }
 
 const apiBase = "https://api.real-debrid.com/rest/1.0"
 
-func (p Provider) Name() string {
+func (p realDebrid) Name() string {
 	return "real-debrid.com"
 }
 
-func (p Provider) Action(r *http.Response, d *core.Downloader) *action.Action {
-	return action.Next()
-}
-
-func (p Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
+func (p realDebrid) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"apitoken", "Token (collect from https://real-debrid.com/apitoken)", true, ""},
 	}
@@ -73,7 +68,7 @@ func (p Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 			if err != nil {
 				return nil, err
 			}
-			c := &Credentials{
+			c := &credentials{
 				m["username"].(string),
 				m["email"].(string),
 				int(m["points"].(float64)),
@@ -88,10 +83,10 @@ func (p Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	}
 }
 
-func (p Provider) NewTemplate() core.Account {
-	return &Credentials{}
+func (p realDebrid) NewTemplate() core.Account {
+	return &credentials{}
 }
 
 func init() {
-	core.RegisterProvider(Provider{})
+	core.RegisterProvider(realDebrid{})
 }
