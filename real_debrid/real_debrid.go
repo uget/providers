@@ -23,9 +23,9 @@ type credentials struct {
 
 var _ core.Account = credentials{} // verify that credentials implements interface
 
-type realDebrid struct{}
+var _ core.Accountant = &Provider{} // verify that realDebrid implements interface
 
-var _ core.Accountant = realDebrid{} // verify that realDebrid implements interface
+type Provider struct{}
 
 func (c credentials) ID() string {
 	return c.Username
@@ -37,11 +37,11 @@ func (c credentials) String() string {
 
 const apiBase = "https://api.real-debrid.com/rest/1.0"
 
-func (p realDebrid) Name() string {
+func (p *Provider) Name() string {
 	return "real-debrid.com"
 }
 
-func (p realDebrid) NewAccount(prompter core.Prompter) (core.Account, error) {
+func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"apitoken", "Token (collect from https://real-debrid.com/apitoken)", true, ""},
 	}
@@ -83,10 +83,10 @@ func (p realDebrid) NewAccount(prompter core.Prompter) (core.Account, error) {
 	}
 }
 
-func (p realDebrid) NewTemplate() core.Account {
+func (p *Provider) NewTemplate() core.Account {
 	return &credentials{}
 }
 
 func init() {
-	core.RegisterProvider(realDebrid{})
+	core.RegisterProvider(&Provider{})
 }

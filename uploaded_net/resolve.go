@@ -11,13 +11,13 @@ import (
 	"github.com/uget/uget/core"
 )
 
-func (p *uploadedNet) CanResolve(url *url.URL) bool {
+func (p *Provider) CanResolve(url *url.URL) bool {
 	return strings.HasSuffix(url.Host, "uploaded.net") ||
 		strings.HasSuffix(url.Host, "uploaded.to") ||
 		strings.HasSuffix(url.Host, "ul.to")
 }
 
-func (p *uploadedNet) Resolve(urls []*url.URL) ([]core.File, error) {
+func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	body := fmt.Sprintf("apikey=%s", apikey)
 	i := 0
 	for _, url := range urls {

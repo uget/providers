@@ -11,18 +11,18 @@ import (
 	"github.com/uget/uget/core"
 )
 
-type basic struct {
+type Provider struct {
 	client *http.Client
 }
 
-var _ core.Retriever = basic{}
-var _ core.SingleResolver = basic{}
+var _ core.Retriever = &Provider{}
+var _ core.SingleResolver = &Provider{}
 
-func (p basic) Name() string {
-	return "default"
+func (p *Provider) Name() string {
+	return "basic"
 }
 
-func (p basic) Retrieve(f core.File) (io.ReadCloser, error) {
+func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 	req, _ := http.NewRequest("GET", f.URL().String(), nil)
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -56,15 +56,15 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return "", "", nil
 }
 
-func (p basic) CanRetrieve(core.File) uint {
+func (p *Provider) CanRetrieve(core.File) uint {
 	return 1
 }
 
-func (p basic) CanResolve(*url.URL) bool {
+func (p *Provider) CanResolve(*url.URL) bool {
 	return true
 }
 
-func (p basic) Resolve(u *url.URL) (core.File, error) {
+func (p *Provider) Resolve(u *url.URL) (core.File, error) {
 	if !u.IsAbs() {
 	}
 	c := &http.Client{}
@@ -95,7 +95,7 @@ func (p basic) Resolve(u *url.URL) (core.File, error) {
 }
 
 func init() {
-	core.RegisterProvider(basic{
+	core.RegisterProvider(&Provider{
 		client: &http.Client{},
 	})
 }

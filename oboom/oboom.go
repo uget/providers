@@ -16,11 +16,11 @@ import (
 
 // Validations
 
-var _ core.MultiResolver = oboom{}
+var _ core.MultiResolver = &Provider{}
 
 var _ core.File = file{}
 
-type oboom struct{}
+type Provider struct{}
 
 type file struct {
 	name string
@@ -56,11 +56,11 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return "", "", nil
 }
 
-func (r oboom) Name() string {
+func (r *Provider) Name() string {
 	return "oboom.net"
 }
 
-func (r oboom) CanResolve(u *url.URL) bool {
+func (r *Provider) CanResolve(u *url.URL) bool {
 	return strings.HasSuffix(u.Host, "oboom.com")
 }
 
@@ -100,7 +100,7 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	return arr[1], code, nil
 }
 
-func (r oboom) Resolve(urls []*url.URL) ([]core.File, error) {
+func (r *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("no URLs provided")
 	}
@@ -159,5 +159,5 @@ func urlFrom(id string) *url.URL {
 }
 
 func init() {
-	core.RegisterProvider(oboom{})
+	core.RegisterProvider(&Provider{})
 }

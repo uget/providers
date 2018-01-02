@@ -13,12 +13,12 @@ import (
 	"github.com/uget/uget/utils"
 )
 
-var _ core.Accountant = &uploadedNet{}
-var _ core.Configured = &uploadedNet{}
-var _ core.Retriever = &uploadedNet{}
-var _ core.MultiResolver = &uploadedNet{}
+var _ core.Accountant = &Provider{}
+var _ core.Configured = &Provider{}
+var _ core.Retriever = &Provider{}
+var _ core.MultiResolver = &Provider{}
 
-type uploadedNet struct {
+type Provider struct {
 	client *http.Client
 	mgr    *core.AccountManager
 	once   *utils.Once
@@ -26,7 +26,7 @@ type uploadedNet struct {
 
 const apikey = "575de523-3d0e-411a-9ebc-af9c6fff8370"
 
-func (p *uploadedNet) Name() string {
+func (p *Provider) Name() string {
 	return "uploaded.net"
 }
 
@@ -35,19 +35,19 @@ func urlFrom(id string) *url.URL {
 	return u
 }
 
-func (p *uploadedNet) Configure(c *core.Config) {
+func (p *Provider) Configure(c *core.Config) {
 	p.mgr = c.AccountManager
 	p.once = &utils.Once{}
 }
 
-func (p *uploadedNet) CanRetrieve(f core.File) uint {
-	if _, ok := f.(file); ok {
-		return 50
+func (p *Provider) CanRetrieve(f core.File) uint {
+	if p.CanResolve(f.URL()) {
+		return 100
 	}
 	return 0
 }
 
-func (p *uploadedNet) Retrieve(f core.File) (io.ReadCloser, error) {
+func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 	if err := p.once.Do(func() error { return p.login() }); err != nil {
 		return nil, err
 	}
@@ -76,5 +76,5 @@ func (p *uploadedNet) Retrieve(f core.File) (io.ReadCloser, error) {
 
 func init() {
 	jar, _ := cookiejar.New(nil)
-	core.RegisterProvider(&uploadedNet{client: &http.Client{Jar: jar}})
+	core.RegisterProvider(&Provider{client: &http.Client{Jar: jar}})
 }

@@ -33,11 +33,11 @@ func (c credentials) String() string {
 	return fmt.Sprintf("uploaded.net<id: %s, email: %s, premium: %v, expires: %v>", c.Name, c.Email, c.Premium, c.Expires)
 }
 
-func (p *uploadedNet) NewTemplate() core.Account {
+func (p *Provider) NewTemplate() core.Account {
 	return &credentials{}
 }
 
-func (p *uploadedNet) setCookie(cookie string) {
+func (p *Provider) setCookie(cookie string) {
 	u, _ := url.Parse("http://uploaded.net")
 	p.client.Jar.SetCookies(u, []*http.Cookie{
 		{
@@ -65,7 +65,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 	return nil, errors.New("could not find login cookie in response headers")
 }
 
-func (p *uploadedNet) login() error {
+func (p *Provider) login() error {
 	var accs []credentials
 	p.mgr.Accounts(&accs)
 	for _, acc := range accs {
@@ -88,7 +88,7 @@ func (p *uploadedNet) login() error {
 	return fmt.Errorf("no suitable account found")
 }
 
-func (p *uploadedNet) NewAccount(prompter core.Prompter) (core.Account, error) {
+func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	fields := []core.Field{
 		{"id", "id", false, ""},
 		{"password", "password", true, ""},

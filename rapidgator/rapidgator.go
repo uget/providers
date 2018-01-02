@@ -18,11 +18,11 @@ import (
 
 // Validations
 
-var _ core.SingleResolver = rapidgator{}
+var _ core.SingleResolver = &Provider{}
 
 var _ core.File = file{}
 
-type rapidgator struct{}
+type Provider struct{}
 
 type file struct {
 	filename string
@@ -61,11 +61,11 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return f.md5, "MD5", md5.New()
 }
 
-func (r rapidgator) Name() string {
+func (r Provider) Name() string {
 	return "rapidgator.net"
 }
 
-func (r rapidgator) CanResolve(u *url.URL) bool {
+func (r *Provider) CanResolve(u *url.URL) bool {
 	return strings.HasSuffix(u.Host, "rapidgator.net")
 }
 
@@ -119,7 +119,7 @@ func normalize(u *url.URL) *url.URL {
 	return u
 }
 
-func (r rapidgator) Resolve(u *url.URL) (core.File, error) {
+func (r *Provider) Resolve(u *url.URL) (core.File, error) {
 	paths := strings.Split(u.RequestURI(), "/")[1:]
 	if paths[0] != "file" {
 		return nil, fmt.Errorf("url doesn't point to a file")
@@ -155,5 +155,5 @@ func (r rapidgator) Resolve(u *url.URL) (core.File, error) {
 }
 
 func init() {
-	core.RegisterProvider(rapidgator{})
+	core.RegisterProvider(&Provider{})
 }
