@@ -2,7 +2,6 @@ package basic
 
 import (
 	"hash"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -22,13 +21,8 @@ func (p *Provider) Name() string {
 	return "basic"
 }
 
-func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
-	req, _ := http.NewRequest("GET", f.URL().String(), nil)
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Body, nil
+func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
+	return http.NewRequest("GET", f.URL().String(), nil)
 }
 
 type file struct {

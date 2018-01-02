@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/uget/providers/oboom"
 	"github.com/uget/providers/rapidgator"
 	"github.com/uget/providers/uploaded_net"
@@ -33,6 +33,8 @@ var _ core.Account = &credentials{} // verify that credentials implements interf
 var _ core.Accountant = &Provider{} // verify that realDebrid implements interface
 
 var _ core.Configured = &Provider{} // verify that provider implements interface
+
+var _ core.Retriever = &Provider{} // verify that provider implements interface
 
 type Provider struct {
 	mgr *core.AccountManager
@@ -58,10 +60,12 @@ func (p *Provider) CanRetrieve(f core.File) uint {
 	if (&uploaded_net.Provider{}).CanResolve(f.URL()) ||
 		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
 		(&oboom.Provider{}).CanResolve(f.URL()) {
+		log.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
 		selected, _ := p.mgr.SelectedAccount()
 		if selected != nil {
 			acc := selected.(*credentials)
-			if acc.Premium && acc.Expires.Before(time.Now()) {
+			log.Debugf("[real-debrid.com] selected account %v", acc.Username)
+			if acc.Premium && acc.Expires.After(time.Now()) {
 				// Prefer this as it has unlimited traffic
 				return 500
 			}
@@ -70,7 +74,7 @@ func (p *Provider) CanRetrieve(f core.File) uint {
 	return 0
 }
 
-func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
+func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
 	selected, _ := p.mgr.SelectedAccount()
 	if selected == nil {
 		return nil, fmt.Errorf("no account exists")
@@ -93,11 +97,7 @@ func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	download, err := c.Get(m["download"].(string))
-	if err != nil {
-		return nil, err
-	}
-	return download.Body, nil
+	return http.NewRequest("GET", m["download"].(string), nil)
 }
 
 func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {

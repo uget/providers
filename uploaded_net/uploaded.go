@@ -2,13 +2,13 @@ package uploaded_net
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	log "github.com/Sirupsen/logrus"
 	"github.com/uget/uget/core"
 	"github.com/uget/uget/utils"
 )
@@ -31,13 +31,15 @@ func (p *Provider) Name() string {
 }
 
 func urlFrom(id string) *url.URL {
-	u, _ := url.Parse(fmt.Sprintf("https://uploaded.net/file/%s", id))
+	u, _ := url.Parse(fmt.Sprintf("http://uploaded.net/file/%s", id))
 	return u
 }
 
 func (p *Provider) Configure(c *core.Config) {
 	p.mgr = c.AccountManager
 	p.once = &utils.Once{}
+	jar, _ := cookiejar.New(nil)
+	p.client.Jar = jar
 }
 
 func (p *Provider) CanRetrieve(f core.File) uint {
@@ -47,7 +49,7 @@ func (p *Provider) CanRetrieve(f core.File) uint {
 	return 0
 }
 
-func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
+func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
 	if err := p.once.Do(func() error { return p.login() }); err != nil {
 		return nil, err
 	}
@@ -56,8 +58,13 @@ func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if strings.HasPrefix(resp.Request.URL.RequestURI(), "/dl/") {
-		return resp.Body, nil
+	if strings.HasPrefix(resp.Status, "3") {
+		loc, err := resp.Location()
+		if err != nil {
+			return nil, err
+		}
+		log.Debugf("[uploaded.net] Redirect to %v", loc)
+		return http.NewRequest("GET", loc.String(), nil)
 	}
 	doc, _ := goquery.NewDocumentFromResponse(resp)
 	val, ok := doc.Find("#download.center form").First().Attr("action")
@@ -67,14 +74,15 @@ func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 	if val == "register" {
 		return nil, fmt.Errorf("account expired")
 	}
-	goal, err := p.client.Get(val)
-	if err != nil {
-		return nil, err
-	}
-	return goal.Body, nil
+	return http.NewRequest("GET", val, nil)
 }
 
 func init() {
-	jar, _ := cookiejar.New(nil)
-	core.RegisterProvider(&Provider{client: &http.Client{Jar: jar}})
+	core.RegisterProvider(&Provider{
+		client: &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
+	})
 }
