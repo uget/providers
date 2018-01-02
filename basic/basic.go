@@ -32,12 +32,17 @@ func (p *Provider) Retrieve(f core.File) (io.ReadCloser, error) {
 }
 
 type file struct {
+	p      *Provider
 	name   string
 	length int64
 	url    *url.URL
 }
 
 var _ core.File = file{}
+
+func (f file) Provider() core.Provider {
+	return f.p
+}
 
 func (f file) URL() *url.URL {
 	return f.url

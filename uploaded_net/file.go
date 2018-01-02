@@ -11,11 +11,16 @@ import (
 var _ core.File = file{}
 
 type file struct {
+	p      *Provider
 	id     string
 	length int64
 	sha1   string
 	name   string
 	url    *url.URL
+}
+
+func (f file) Provider() core.Provider {
+	return f.p
 }
 
 func (f file) URL() *url.URL {

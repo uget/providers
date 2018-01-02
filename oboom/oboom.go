@@ -23,6 +23,7 @@ var _ core.File = file{}
 type Provider struct{}
 
 type file struct {
+	p    *Provider
 	name string
 	size int64
 	url  *url.URL
@@ -40,6 +41,10 @@ var session = struct {
 	expires time.Time
 }{}
 
+func (f file) Provider() core.Provider {
+	return f.p
+}
+
 func (f file) URL() *url.URL {
 	return f.url
 }
@@ -56,11 +61,11 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return "", "", nil
 }
 
-func (r *Provider) Name() string {
+func (p *Provider) Name() string {
 	return "oboom.net"
 }
 
-func (r *Provider) CanResolve(u *url.URL) bool {
+func (p *Provider) CanResolve(u *url.URL) bool {
 	return strings.HasSuffix(u.Host, "oboom.com")
 }
 
@@ -100,7 +105,7 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	return arr[1], code, nil
 }
 
-func (r *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
+func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("no URLs provided")
 	}
@@ -129,7 +134,7 @@ func (r *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 		if code == 403 { // session expired already?
 			// thread unsafe but we don't care if multiple goroutines invalidate the session
 			session.expires = time.Now().Add(-100 * time.Hour)
-			return r.Resolve(urls)
+			return p.Resolve(urls)
 		}
 		return nil, fmt.Errorf("[oboom.net] status code %v", code)
 	}
@@ -140,9 +145,10 @@ func (r *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 		var f core.File
 		u := urlFrom(record["id"].(string))
 		if record["state"] != "online" {
-			f = file{size: -1, url: u}
+			f = file{p: p, size: -1, url: u}
 		} else {
 			f = file{
+				p:    p,
 				size: int64(record["size"].(float64)),
 				name: record["name"].(string),
 				url:  u,

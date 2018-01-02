@@ -25,11 +25,11 @@ type credentials struct {
 	LoginCookie string    `json:"login_cookie" sensitive:"true"`
 }
 
-func (c credentials) ID() string {
+func (c *credentials) ID() string {
 	return c.Name
 }
 
-func (c credentials) String() string {
+func (c *credentials) String() string {
 	return fmt.Sprintf("uploaded.net<id: %s, email: %s, premium: %v, expires: %v>", c.Name, c.Email, c.Premium, c.Expires)
 }
 
@@ -66,7 +66,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 }
 
 func (p *Provider) login() error {
-	var accs []credentials
+	var accs []*credentials
 	p.mgr.Accounts(&accs)
 	for _, acc := range accs {
 		if acc.Premium {
@@ -107,12 +107,12 @@ func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	if err != nil {
 		return nil, err
 	} else {
-		c := credentials{
+		c := &credentials{
 			Name:        id,
 			Password:    pw,
 			LoginCookie: cookie.Value,
 		}
-		fillAccountInfo(client, &c)
+		fillAccountInfo(client, c)
 		return c, nil
 	}
 }

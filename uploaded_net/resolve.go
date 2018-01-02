@@ -51,13 +51,13 @@ func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	fs := make([]core.File, 0, len(records))
 	for _, record := range records {
 		if record[0] == "offline" {
-			fs = append(fs, file{length: -1, url: urlFrom(record[1])})
+			fs = append(fs, file{p: p, length: -1, url: urlFrom(record[1])})
 		} else if record[0] != "online" {
 			return nil, fmt.Errorf("file error: %v", record[0])
 		}
 		if len, err := strconv.ParseInt(record[2], 10, 0); err == nil {
 			id := record[1]
-			fs = append(fs, file{id, len, record[3], record[4], urlFrom(id)})
+			fs = append(fs, file{p, id, len, record[3], record[4], urlFrom(id)})
 		}
 	}
 	return fs, nil

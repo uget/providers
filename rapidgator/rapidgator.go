@@ -25,6 +25,7 @@ var _ core.File = file{}
 type Provider struct{}
 
 type file struct {
+	p        *Provider
 	filename string
 	size     int64
 	md5      string
@@ -47,6 +48,10 @@ var session = struct {
 
 func (f file) URL() *url.URL {
 	return f.url
+}
+
+func (f file) Provider() core.Provider {
+	return f.p
 }
 
 func (f file) Name() string {
@@ -139,7 +144,7 @@ func (r *Provider) Resolve(u *url.URL) (core.File, error) {
 	}
 	if code != 200 {
 		if code == 404 {
-			return file{size: -1, url: u}, nil
+			return file{p: r, size: -1, url: u}, nil
 		} else if code == 403 { // session expired already?
 			// thread unsafe but we don't care if multiple goroutines invalidate the session
 			session.expires = time.Now().Add(-100 * time.Hour)
@@ -151,7 +156,7 @@ func (r *Provider) Resolve(u *url.URL) (core.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return file{f["filename"].(string), size, f["hash"].(string), u}, nil
+	return file{r, f["filename"].(string), size, f["hash"].(string), u}, nil
 }
 
 func init() {
