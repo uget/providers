@@ -66,7 +66,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 }
 
 func (p *Provider) login() error {
-	var accs []*credentials
+	var accs []credentials
 	p.mgr.Accounts(&accs)
 	for _, acc := range accs {
 		if acc.Premium {
