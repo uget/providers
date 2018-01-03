@@ -2,9 +2,9 @@ package basic
 
 import (
 	"hash"
+	"mime"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/uget/uget/core"
@@ -72,11 +72,11 @@ func (p *Provider) Resolve(u *url.URL) (core.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	disposition := resp.Header.Get("Content-Disposition")
 	f := file{length: resp.ContentLength, url: u}
-	arr := regexp.MustCompile(`filename="(.*?)"`).FindStringSubmatch(disposition)
-	if len(arr) > 1 {
-		f.name = arr[1]
+	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
+		if _, params, err := mime.ParseMediaType(cd); err == nil {
+			f.name = params["filename"]
+		}
 	} else {
 		paths := strings.Split(u.RequestURI(), "/")
 		rawName := paths[len(paths)-1]
