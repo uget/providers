@@ -13,6 +13,8 @@ import (
 	"github.com/uget/uget/utils"
 )
 
+const apikey = "575de523-3d0e-411a-9ebc-af9c6fff8370"
+
 var _ core.Accountant = &Provider{}
 var _ core.Configured = &Provider{}
 var _ core.Retriever = &Provider{}
@@ -23,8 +25,6 @@ type Provider struct {
 	mgr    *core.AccountManager
 	once   *utils.Once
 }
-
-const apikey = "575de523-3d0e-411a-9ebc-af9c6fff8370"
 
 func (p *Provider) Name() string {
 	return "uploaded.net"
@@ -81,7 +81,10 @@ func init() {
 	core.RegisterProvider(&Provider{
 		client: &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
+				if strings.HasPrefix(req.URL.Path, "/dl/") {
+					return http.ErrUseLastResponse
+				}
+				return nil
 			},
 		},
 	})

@@ -12,7 +12,8 @@ import (
 )
 
 func (p *Provider) CanResolve(url *url.URL) bool {
-	return strings.HasSuffix(url.Host, "uploaded.net") ||
+	// prefix /dl/ in path is direct file -- leave it to the basic provider.
+	return strings.HasSuffix(url.Host, "uploaded.net") && !strings.HasPrefix(url.Path, "/dl/") ||
 		strings.HasSuffix(url.Host, "uploaded.to") ||
 		strings.HasSuffix(url.Host, "ul.to")
 }
@@ -43,10 +44,9 @@ func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 		return nil, err
 	}
 	csv := csv.NewReader(resp.Body)
-	csv.FieldsPerRecord = 0
 	records, err := csv.ReadAll()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("csv: %v", err)
 	}
 	fs := make([]core.File, 0, len(records))
 	for _, record := range records {
