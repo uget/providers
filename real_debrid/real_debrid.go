@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/uget/providers/oboom"
 	"github.com/uget/providers/rapidgator"
 	"github.com/uget/providers/uploaded"
@@ -60,11 +60,11 @@ func (p *Provider) CanRetrieve(f core.File) uint {
 	if (&uploaded.Provider{}).CanResolve(f.URL()) ||
 		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
 		(&oboom.Provider{}).CanResolve(f.URL()) {
-		log.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
+		logrus.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
 		selected, _ := p.mgr.SelectedAccount()
 		if selected != nil {
 			acc := selected.(*credentials)
-			log.Debugf("[real-debrid.com] selected account %v", acc.Username)
+			logrus.Debugf("[real-debrid.com] selected account %v", acc.Username)
 			if acc.Premium && acc.Expires.After(time.Now()) {
 				// Prefer this as it has unlimited traffic
 				return 500
@@ -97,7 +97,23 @@ func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	return http.NewRequest("GET", m["download"].(string), nil)
+	logrus.Debugf("[real-debrid.com] json: %v", string(body))
+	url, ok := m["download"].(string)
+	if !ok {
+		es := "missing download ticket"
+		code, ok := m["error_code"].(float64)
+		if ok {
+			es += fmt.Sprintf(" (%v)", errorCodes[int(code)])
+		} else {
+			es += " (unknown error)"
+		}
+		return nil, fmt.Errorf(es)
+	}
+	i := strings.LastIndexByte(url, '/')
+	if strings.Contains(url[0:i], m["id"].(string)) {
+		url = url[0:i]
+	}
+	return http.NewRequest("GET", url, nil)
 }
 
 func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
