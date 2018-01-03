@@ -53,7 +53,7 @@ func (f file) Name() string {
 	return f.name
 }
 
-func (f file) Length() int64 {
+func (f file) Size() int64 {
 	return f.size
 }
 
