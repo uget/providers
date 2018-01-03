@@ -1,4 +1,4 @@
-package uploaded_net
+package uploaded
 
 import (
 	"fmt"

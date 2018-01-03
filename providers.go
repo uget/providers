@@ -6,5 +6,5 @@ import (
 	_ "github.com/uget/providers/oboom"
 	_ "github.com/uget/providers/rapidgator"
 	_ "github.com/uget/providers/real_debrid"
-	_ "github.com/uget/providers/uploaded_net"
+	_ "github.com/uget/providers/uploaded"
 )

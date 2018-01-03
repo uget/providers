@@ -13,7 +13,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/uget/providers/oboom"
 	"github.com/uget/providers/rapidgator"
-	"github.com/uget/providers/uploaded_net"
+	"github.com/uget/providers/uploaded"
 	"github.com/uget/uget/core"
 )
 
@@ -57,7 +57,7 @@ func (p *Provider) Name() string {
 }
 
 func (p *Provider) CanRetrieve(f core.File) uint {
-	if (&uploaded_net.Provider{}).CanResolve(f.URL()) ||
+	if (&uploaded.Provider{}).CanResolve(f.URL()) ||
 		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
 		(&oboom.Provider{}).CanResolve(f.URL()) {
 		log.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
