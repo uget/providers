@@ -39,7 +39,15 @@ func (p *Provider) Configure(c *core.Config) {
 	p.mgr = c.AccountManager
 	p.once = &utils.Once{}
 	jar, _ := cookiejar.New(nil)
-	p.client.Jar = jar
+	p.client = &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if strings.HasPrefix(req.URL.Path, "/dl/") {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+		Jar: jar,
+	}
 }
 
 func (p *Provider) CanRetrieve(f core.File) uint {
@@ -78,14 +86,5 @@ func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
 }
 
 func init() {
-	core.RegisterProvider(&Provider{
-		client: &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if strings.HasPrefix(req.URL.Path, "/dl/") {
-					return http.ErrUseLastResponse
-				}
-				return nil
-			},
-		},
-	})
+	core.RegisterProvider(&Provider{})
 }

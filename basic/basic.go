@@ -16,9 +16,14 @@ type Provider struct {
 
 var _ core.Retriever = &Provider{}
 var _ core.SingleResolver = &Provider{}
+var _ core.Configured = &Provider{}
 
 func (p *Provider) Name() string {
 	return "basic"
+}
+
+func (p *Provider) Configure(*core.Config) {
+	p.client = &http.Client{}
 }
 
 func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
@@ -94,7 +99,5 @@ func (p *Provider) Resolve(u *url.URL) (core.File, error) {
 }
 
 func init() {
-	core.RegisterProvider(&Provider{
-		client: &http.Client{},
-	})
+	core.RegisterProvider(&Provider{})
 }
