@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 func (p *Provider) CanResolve(url *url.URL) bool {
@@ -18,7 +18,7 @@ func (p *Provider) CanResolve(url *url.URL) bool {
 		strings.HasSuffix(url.Host, "ul.to")
 }
 
-func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
+func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 	body := fmt.Sprintf("apikey=%s", apikey)
 	i := 0
 	for _, url := range urls {
@@ -48,7 +48,7 @@ func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("csv: %v", err)
 	}
-	fs := make([]core.File, 0, len(records))
+	fs := make([]api.File, 0, len(records))
 	for _, record := range records {
 		if record[0] == "offline" {
 			fs = append(fs, file{p: p, length: -1, url: urlFrom(record[1])})

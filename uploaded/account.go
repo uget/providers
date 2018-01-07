@@ -6,14 +6,11 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
-	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 type credentials struct {
@@ -33,7 +30,7 @@ func (c *credentials) String() string {
 	return fmt.Sprintf("uploaded.net<id: %s, email: %s, premium: %v, expires: %v>", c.Name, c.Email, c.Premium, c.Expires)
 }
 
-func (p *Provider) NewTemplate() core.Account {
+func (p *Provider) NewTemplate() api.Account {
 	return &credentials{}
 }
 
@@ -88,8 +85,8 @@ func (p *Provider) login() error {
 	return fmt.Errorf("no suitable account found")
 }
 
-func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
-	fields := []core.Field{
+func (p *Provider) NewAccount(prompter api.Prompter) (api.Account, error) {
+	fields := []api.Field{
 		{"id", "id", false, ""},
 		{"password", "password", true, ""},
 	}
@@ -119,26 +116,27 @@ func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 
 func fillAccountInfo(client *http.Client, c *credentials) {
 	request, _ := http.NewRequest("GET", "https://uploaded.net", nil)
-	resp, err := client.Do(request)
+	_, err := client.Do(request)
 	if err != nil {
 		return
 	}
-	doc, err := goquery.NewDocumentFromResponse(resp)
-	if err != nil {
-		return
-	}
-	s := doc.Find("#account table.data").First()
-	email := s.Find("#chMail").Get(0).Attr[1].Val
-	c.Email = email
-	defpre := s.Find("a[href=register]").First().Children().Text()
-	c.Premium = defpre == "Premium"
-	duration := s.Find("tr:contains('Duration') th:not(#chAlias)").Text()
-	matches := regexp.MustCompile(`(?i)(\d+) weeks? (\d+) days? and (\d+) hours?`).FindStringSubmatch(duration)
-	weeks, err1 := strconv.Atoi(matches[1])
-	days, err2 := strconv.Atoi(matches[2])
-	hours, err3 := strconv.Atoi(matches[3])
-	if err1 != nil || err2 != nil || err3 != nil {
-		return
-	}
-	c.Expires = time.Now().Add(time.Duration(hours+(days+weeks*7)*24) * time.Hour)
+	return
+	// doc, err := goquery.NewDocumentFromResponse(resp)
+	// if err != nil {
+	// 	return
+	// }
+	// s := doc.Find("#account table.data").First()
+	// email := s.Find("#chMail").Get(0).Attr[1].Val
+	// c.Email = email
+	// defpre := s.Find("a[href=register]").First().Children().Text()
+	// c.Premium = defpre == "Premium"
+	// duration := s.Find("tr:contains('Duration') th:not(#chAlias)").Text()
+	// matches := regexp.MustCompile(`(?i)(\d+) weeks? (\d+) days? and (\d+) hours?`).FindStringSubmatch(duration)
+	// weeks, err1 := strconv.Atoi(matches[1])
+	// days, err2 := strconv.Atoi(matches[2])
+	// hours, err3 := strconv.Atoi(matches[3])
+	// if err1 != nil || err2 != nil || err3 != nil {
+	// 	return
+	// }
+	// c.Expires = time.Now().Add(time.Duration(hours+(days+weeks*7)*24) * time.Hour)
 }

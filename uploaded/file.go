@@ -5,10 +5,10 @@ import (
 	"hash"
 	"net/url"
 
-	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
-var _ core.File = file{}
+var _ api.File = file{}
 
 type file struct {
 	p      *Provider
@@ -19,7 +19,7 @@ type file struct {
 	url    *url.URL
 }
 
-func (f file) Provider() core.Provider {
+func (f file) Provider() api.Provider {
 	return f.p
 }
 

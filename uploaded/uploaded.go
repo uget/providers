@@ -7,22 +7,24 @@ import (
 	"net/url"
 	"strings"
 
+	// "github.com/PuerkitoBio/goquery"
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
 	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 	"github.com/uget/uget/utils"
 )
 
 const apikey = "575de523-3d0e-411a-9ebc-af9c6fff8370"
 
-var _ core.Accountant = &Provider{}
-var _ core.Configured = &Provider{}
-var _ core.Retriever = &Provider{}
-var _ core.MultiResolver = &Provider{}
+var _ api.Accountant = &Provider{}
+var _ api.Configured = &Provider{}
+var _ api.Retriever = &Provider{}
+var _ api.MultiResolver = &Provider{}
 
 type Provider struct {
 	client *http.Client
-	mgr    *core.AccountManager
+	mgr    api.AccountManager
 	once   *utils.Once
 }
 
@@ -35,7 +37,7 @@ func urlFrom(id string) *url.URL {
 	return u
 }
 
-func (p *Provider) Configure(c *core.Config) {
+func (p *Provider) Configure(c *api.Config) {
 	p.mgr = c.AccountManager
 	p.once = &utils.Once{}
 	jar, _ := cookiejar.New(nil)
@@ -50,14 +52,14 @@ func (p *Provider) Configure(c *core.Config) {
 	}
 }
 
-func (p *Provider) CanRetrieve(f core.File) uint {
+func (p *Provider) CanRetrieve(f api.File) uint {
 	if p.CanResolve(f.URL()) {
 		return 100
 	}
 	return 0
 }
 
-func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
+func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
 	if err := p.once.Do(func() error { return p.login() }); err != nil {
 		return nil, err
 	}

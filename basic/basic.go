@@ -1,6 +1,7 @@
 package basic
 
 import (
+	"fmt"
 	"hash"
 	"mime"
 	"net/http"
@@ -8,25 +9,26 @@ import (
 	"strings"
 
 	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 type Provider struct {
 	client *http.Client
 }
 
-var _ core.Retriever = &Provider{}
-var _ core.SingleResolver = &Provider{}
-var _ core.Configured = &Provider{}
+var _ api.Retriever = &Provider{}
+var _ api.SingleResolver = &Provider{}
+var _ api.Configured = &Provider{}
 
 func (p *Provider) Name() string {
 	return "basic"
 }
 
-func (p *Provider) Configure(*core.Config) {
+func (p *Provider) Configure(*api.Config) {
 	p.client = &http.Client{}
 }
 
-func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
+func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
 	return http.NewRequest("GET", f.URL().String(), nil)
 }
 
@@ -37,9 +39,9 @@ type file struct {
 	url    *url.URL
 }
 
-var _ core.File = file{}
+var _ api.File = file{}
 
-func (f file) Provider() core.Provider {
+func (f file) Provider() api.Provider {
 	return f.p
 }
 
@@ -60,7 +62,7 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return "", "", nil
 }
 
-func (p *Provider) CanRetrieve(core.File) uint {
+func (p *Provider) CanRetrieve(api.File) uint {
 	return 1
 }
 
@@ -68,7 +70,7 @@ func (p *Provider) CanResolve(*url.URL) bool {
 	return true
 }
 
-func (p *Provider) Resolve(u *url.URL) (core.File, error) {
+func (p *Provider) Resolve(u *url.URL) (api.File, error) {
 	if !u.IsAbs() {
 	}
 	c := &http.Client{}

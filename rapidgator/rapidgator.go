@@ -14,13 +14,14 @@ import (
 	"time"
 
 	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 // Validations
 
-var _ core.SingleResolver = &Provider{}
+var _ api.SingleResolver = &Provider{}
 
-var _ core.File = file{}
+var _ api.File = file{}
 
 type Provider struct{}
 
@@ -50,7 +51,7 @@ func (f file) URL() *url.URL {
 	return f.url
 }
 
-func (f file) Provider() core.Provider {
+func (f file) Provider() api.Provider {
 	return f.p
 }
 
@@ -124,7 +125,7 @@ func normalize(u *url.URL) *url.URL {
 	return u
 }
 
-func (r *Provider) Resolve(u *url.URL) (core.File, error) {
+func (r *Provider) Resolve(u *url.URL) (api.File, error) {
 	paths := strings.Split(u.RequestURI(), "/")[1:]
 	if paths[0] != "file" {
 		return nil, fmt.Errorf("url doesn't point to a file")

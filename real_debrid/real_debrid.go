@@ -15,6 +15,7 @@ import (
 	"github.com/uget/providers/rapidgator"
 	"github.com/uget/providers/uploaded"
 	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 const apiBase = "https://api.real-debrid.com/rest/1.0"
@@ -28,16 +29,16 @@ type credentials struct {
 	APIToken string    `json:"apitoken" sensitive:"true"`
 }
 
-var _ core.Account = &credentials{} // verify that credentials implements interface
+var _ api.Account = &credentials{} // verify that credentials implements interface
 
-var _ core.Accountant = &Provider{} // verify that realDebrid implements interface
+var _ api.Accountant = &Provider{} // verify that realDebrid implements interface
 
-var _ core.Configured = &Provider{} // verify that provider implements interface
+var _ api.Configured = &Provider{} // verify that provider implements interface
 
-var _ core.Retriever = &Provider{} // verify that provider implements interface
+var _ api.Retriever = &Provider{} // verify that provider implements interface
 
 type Provider struct {
-	mgr *core.AccountManager
+	mgr api.AccountManager
 }
 
 func (c credentials) ID() string {
@@ -48,7 +49,7 @@ func (c credentials) String() string {
 	return fmt.Sprintf("real-debrid.com<username: %s, email: %s, premium: %v, fidelity: %v>", c.Username, c.Email, c.Premium, c.Points)
 }
 
-func (p *Provider) Configure(c *core.Config) {
+func (p *Provider) Configure(c *api.Config) {
 	p.mgr = c.AccountManager
 }
 
@@ -56,7 +57,7 @@ func (p *Provider) Name() string {
 	return "real-debrid.com"
 }
 
-func (p *Provider) CanRetrieve(f core.File) uint {
+func (p *Provider) CanRetrieve(f api.File) uint {
 	if (&uploaded.Provider{}).CanResolve(f.URL()) ||
 		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
 		(&oboom.Provider{}).CanResolve(f.URL()) {
@@ -74,7 +75,7 @@ func (p *Provider) CanRetrieve(f core.File) uint {
 	return 0
 }
 
-func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
+func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
 	selected, _ := p.mgr.SelectedAccount()
 	if selected == nil {
 		return nil, fmt.Errorf("no account exists")
@@ -116,8 +117,8 @@ func (p *Provider) Retrieve(f core.File) (*http.Request, error) {
 	return http.NewRequest("GET", url, nil)
 }
 
-func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
-	fields := []core.Field{
+func (p *Provider) NewAccount(prompter api.Prompter) (api.Account, error) {
+	fields := []api.Field{
 		{"apitoken", "Token (collect from https://real-debrid.com/apitoken)", true, ""},
 	}
 	vals, err := prompter.Get(fields)
@@ -158,7 +159,7 @@ func (p *Provider) NewAccount(prompter core.Prompter) (core.Account, error) {
 	}
 }
 
-func (p *Provider) NewTemplate() core.Account {
+func (p *Provider) NewTemplate() api.Account {
 	return &credentials{}
 }
 

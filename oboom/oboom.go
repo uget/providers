@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/uget/uget/core"
+	"github.com/uget/uget/core/api"
 )
 
 // Validations
 
-var _ core.MultiResolver = &Provider{}
+var _ api.MultiResolver = &Provider{}
 
-var _ core.File = file{}
+var _ api.File = file{}
 
 type Provider struct{}
 
@@ -41,7 +42,7 @@ var session = struct {
 	expires time.Time
 }{}
 
-func (f file) Provider() core.Provider {
+func (f file) Provider() api.Provider {
 	return f.p
 }
 
@@ -105,7 +106,7 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	return arr[1], code, nil
 }
 
-func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
+func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("no URLs provided")
 	}
@@ -139,10 +140,10 @@ func (p *Provider) Resolve(urls []*url.URL) ([]core.File, error) {
 		return nil, fmt.Errorf("[oboom.net] status code %v", code)
 	}
 	arr := i.([]interface{})
-	fs := make([]core.File, 0, len(arr))
+	fs := make([]api.File, 0, len(arr))
 	for _, m := range arr {
 		record := m.(map[string]interface{})
-		var f core.File
+		var f api.File
 		u := urlFrom(record["id"].(string))
 		if record["state"] != "online" {
 			f = file{p: p, size: -1, url: u}
