@@ -8,7 +8,7 @@
     - [x] managing accounts
 - real-debrid.com:
     - [x] retrieving
-    - [x[ managing accounts
+    - [x] managing accounts
 - oboom.com:
     - [x] resolving
     - [ ] retrieving
