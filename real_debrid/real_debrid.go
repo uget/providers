@@ -15,7 +15,7 @@ import (
 	"github.com/uget/providers/rapidgator"
 	"github.com/uget/providers/uploaded"
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 const apiBase = "https://api.real-debrid.com/rest/1.0"
@@ -38,7 +38,7 @@ var _ api.Configured = &Provider{} // verify that provider implements interface
 var _ api.Retriever = &Provider{} // verify that provider implements interface
 
 type Provider struct {
-	mgr api.AccountManager
+	accts []api.Account
 }
 
 func (c credentials) ID() string {
@@ -50,7 +50,7 @@ func (c credentials) String() string {
 }
 
 func (p *Provider) Configure(c *api.Config) {
-	p.mgr = c.AccountManager
+	p.accts = c.Accounts
 }
 
 func (p *Provider) Name() string {
@@ -62,12 +62,10 @@ func (p *Provider) CanRetrieve(f api.File) uint {
 		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
 		(&oboom.Provider{}).CanResolve(f.URL()) {
 		logrus.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
-		selected, _ := p.mgr.SelectedAccount()
-		if selected != nil {
-			acc := selected.(*credentials)
-			logrus.Debugf("[real-debrid.com] selected account %v", acc.Username)
-			if acc.Premium && acc.Expires.After(time.Now()) {
-				// Prefer this as it has unlimited traffic
+		for _, acc := range p.accts {
+			account := acc.(credentials)
+			if account.Premium && account.Expires.After(time.Now()) {
+				logrus.Debugf("[real-debrid.com] selected account %v", account.Username)
 				return 500
 			}
 		}
@@ -76,7 +74,12 @@ func (p *Provider) CanRetrieve(f api.File) uint {
 }
 
 func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
-	selected, _ := p.mgr.SelectedAccount()
+	var selected api.Account
+	for _, acc := range p.accts {
+		if acc.(credentials).Premium {
+			selected = acc
+		}
+	}
 	if selected == nil {
 		return nil, fmt.Errorf("no account exists")
 	}

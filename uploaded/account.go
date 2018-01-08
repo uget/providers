@@ -10,7 +10,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 type credentials struct {
@@ -63,8 +63,7 @@ func login(client *http.Client, id string, pw string) (*http.Cookie, error) {
 }
 
 func (p *Provider) login() error {
-	accounts := p.mgr.Accounts()
-	for _, account := range accounts {
+	for _, account := range p.accts {
 		acc := account.(*credentials)
 		if acc.Premium {
 			if acc.LoginCookie != "" {

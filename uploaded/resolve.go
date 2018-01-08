@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 func (p *Provider) CanResolve(url *url.URL) bool {

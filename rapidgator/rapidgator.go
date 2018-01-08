@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 // Validations

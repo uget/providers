@@ -11,7 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 	"github.com/uget/uget/utils"
 )
 
@@ -24,7 +24,7 @@ var _ api.MultiResolver = &Provider{}
 
 type Provider struct {
 	client *http.Client
-	mgr    api.AccountManager
+	accts  []api.Account
 	once   *utils.Once
 }
 
@@ -38,7 +38,7 @@ func urlFrom(id string) *url.URL {
 }
 
 func (p *Provider) Configure(c *api.Config) {
-	p.mgr = c.AccountManager
+	p.accts = c.Accounts
 	p.once = &utils.Once{}
 	jar, _ := cookiejar.New(nil)
 	p.client = &http.Client{

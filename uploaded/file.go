@@ -5,7 +5,7 @@ import (
 	"hash"
 	"net/url"
 
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 var _ api.File = file{}

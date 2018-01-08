@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/uget/uget/core"
-	"github.com/uget/uget/core/api"
+	api "github.com/uget/uget/core/api"
 )
 
 type Provider struct {
