@@ -51,7 +51,7 @@ func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 	fs := make([]api.File, 0, len(records))
 	for _, record := range records {
 		if record[0] == "offline" {
-			fs = append(fs, file{p: p, length: -1, url: urlFrom(record[1])})
+			fs = append(fs, file{p: p, length: api.FileSizeOffline, url: urlFrom(record[1])})
 		} else if record[0] != "online" {
 			return nil, fmt.Errorf("file error: %v", record[0])
 		}

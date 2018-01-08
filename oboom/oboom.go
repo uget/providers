@@ -146,7 +146,7 @@ func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 		var f api.File
 		u := urlFrom(record["id"].(string))
 		if record["state"] != "online" {
-			f = file{p: p, size: -1, url: u}
+			f = file{p: p, size: api.FileSizeOffline, url: u}
 		} else {
 			f = file{
 				p:    p,

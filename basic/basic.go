@@ -79,7 +79,17 @@ func (p *Provider) Resolve(u *url.URL) (api.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := file{length: resp.ContentLength, url: u}
+	f := file{length: api.FileSizeOffline, url: u}
+	if resp.StatusCode == http.StatusNotFound {
+		return f, nil // 404 => file is offline
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(resp.Status)
+	}
+	if resp.ContentLength == -1 {
+		f.length = api.FileSizeUnknown
+	} else {
+		f.length = resp.ContentLength
+	}
 	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
 		if _, params, err := mime.ParseMediaType(cd); err == nil {
 			f.name = params["filename"]

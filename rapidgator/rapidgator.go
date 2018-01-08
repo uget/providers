@@ -145,7 +145,7 @@ func (r *Provider) Resolve(u *url.URL) (api.File, error) {
 	}
 	if code != 200 {
 		if code == 404 {
-			return file{p: r, size: -1, url: u}, nil
+			return file{p: r, size: api.FileSizeOffline, url: u}, nil
 		} else if code == 403 { // session expired already?
 			// thread unsafe but we don't care if multiple goroutines invalidate the session
 			session.expires = time.Now().Add(-100 * time.Hour)
