@@ -41,11 +41,11 @@ type Provider struct {
 	accts []api.Account
 }
 
-func (c credentials) ID() string {
+func (c *credentials) ID() string {
 	return c.Username
 }
 
-func (c credentials) String() string {
+func (c *credentials) String() string {
 	return fmt.Sprintf("real-debrid.com<username: %s, email: %s, premium: %v, fidelity: %v>", c.Username, c.Email, c.Premium, c.Points)
 }
 
@@ -63,7 +63,7 @@ func (p *Provider) CanRetrieve(f api.File) uint {
 		(&oboom.Provider{}).CanResolve(f.URL()) {
 		logrus.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
 		for _, acc := range p.accts {
-			account := acc.(credentials)
+			account := acc.(*credentials)
 			if account.Premium && account.Expires.After(time.Now()) {
 				logrus.Debugf("[real-debrid.com] selected account %v", account.Username)
 				return 500
@@ -76,7 +76,7 @@ func (p *Provider) CanRetrieve(f api.File) uint {
 func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
 	var selected api.Account
 	for _, acc := range p.accts {
-		if acc.(credentials).Premium {
+		if acc.(*credentials).Premium {
 			selected = acc
 		}
 	}
