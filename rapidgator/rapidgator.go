@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/uget/uget/core"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -158,8 +157,4 @@ func (r *Provider) Resolve(u *url.URL) (api.File, error) {
 		return nil, err
 	}
 	return file{r, f["filename"].(string), size, f["hash"].(string), u}, nil
-}
-
-func init() {
-	core.RegisterProvider(&Provider{})
 }

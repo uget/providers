@@ -10,7 +10,6 @@ import (
 	// "github.com/PuerkitoBio/goquery"
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/Sirupsen/logrus"
-	"github.com/uget/uget/core"
 	api "github.com/uget/uget/core/api"
 	"github.com/uget/uget/utils"
 )
@@ -85,8 +84,4 @@ func (p *Provider) Retrieve(f api.File) (*http.Request, error) {
 		return nil, fmt.Errorf("account expired")
 	}
 	return http.NewRequest("GET", val, nil)
-}
-
-func init() {
-	core.RegisterProvider(&Provider{})
 }

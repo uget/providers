@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/uget/uget/core"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -94,7 +93,6 @@ func (f file) URL() *url.URL {
 
 func (f file) Name() string {
 	return f.name
-
 }
 
 func (f file) Size() int64 {
@@ -162,8 +160,4 @@ func (p *Provider) login(req *http.Request) {
 		}
 	}
 
-}
-
-func init() {
-	core.RegisterProvider(&Provider{})
 }

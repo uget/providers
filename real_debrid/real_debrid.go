@@ -14,7 +14,6 @@ import (
 	"github.com/uget/providers/oboom"
 	"github.com/uget/providers/rapidgator"
 	"github.com/uget/providers/uploaded"
-	"github.com/uget/uget/core"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -164,8 +163,4 @@ func (p *Provider) NewAccount(prompter api.Prompter) (api.Account, error) {
 
 func (p *Provider) NewTemplate() api.Account {
 	return &credentials{}
-}
-
-func init() {
-	core.RegisterProvider(&Provider{})
 }

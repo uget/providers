@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/uget/uget/core"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -163,8 +162,4 @@ func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 func urlFrom(id string) *url.URL {
 	u, _ := url.Parse(fmt.Sprintf("https://oboom.com/%s", id))
 	return u
-}
-
-func init() {
-	core.RegisterProvider(&Provider{})
 }
