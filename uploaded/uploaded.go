@@ -52,7 +52,7 @@ func (p *Provider) Configure(c *api.Config) {
 }
 
 func (p *Provider) CanRetrieve(f api.File) uint {
-	if p.CanResolve(f.URL()) {
+	if p.CanResolve(f.URL()) != api.Next {
 		return 100
 	}
 	return 0

@@ -11,11 +11,11 @@ import (
 )
 
 var All = []api.Provider{
-	&basic.Provider{},
 	&oboom.Provider{},
 	&rapidgator.Provider{},
 	&uploaded.Provider{},
 	&real_debrid.Provider{},
+	&basic.Provider{},
 }
 
 func init() {

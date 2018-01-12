@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -107,26 +108,27 @@ func (p *Provider) CanRetrieve(api.File) uint {
 	return 1
 }
 
-func (p *Provider) CanResolve(*url.URL) bool {
-	return true
+func (p *Provider) CanResolve(*url.URL) api.Resolvability {
+	return api.Single
 }
 
-func (p *Provider) Resolve(u *url.URL) (api.File, error) {
-	if !u.IsAbs() {
+func (p *Provider) ResolveOne(r api.Request) ([]api.Request, error) {
+	logrus.Debugf("basic#ResolveOne: %v", r.URL())
+	if !r.URL().IsAbs() {
 		return nil, fmt.Errorf("non-absolute URL")
 	}
-	req, _ := http.NewRequest("HEAD", u.String(), nil)
+	req, _ := http.NewRequest("HEAD", r.URL().String(), nil)
 	p.login(req)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	f := file{length: api.FileSizeOffline, url: u}
 	if resp.StatusCode == http.StatusNotFound {
-		return f, nil // 404 => file is offline
+		return r.Deadend().Wrap(), nil // 404 => file is offline
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(resp.Status)
 	}
+	f := file{url: r.URL()}
 	if resp.ContentLength == -1 {
 		f.length = api.FileSizeUnknown
 	} else {
@@ -137,7 +139,7 @@ func (p *Provider) Resolve(u *url.URL) (api.File, error) {
 			f.name = params["filename"]
 		}
 	} else {
-		paths := strings.Split(u.RequestURI(), "/")
+		paths := strings.Split(r.URL().RequestURI(), "/")
 		rawName := paths[len(paths)-1]
 		name, err := url.PathUnescape(rawName)
 		if err != nil {
@@ -149,7 +151,7 @@ func (p *Provider) Resolve(u *url.URL) (api.File, error) {
 			f.name = name
 		}
 	}
-	return f, nil
+	return r.ResolvesTo(f).Wrap(), nil
 }
 
 func (p *Provider) login(req *http.Request) {

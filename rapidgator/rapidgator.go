@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	api "github.com/uget/uget/core/api"
@@ -43,7 +44,7 @@ var mtx = sync.Mutex{}
 
 var session = struct {
 	sid     string
-	expires time.Time
+	expires int64
 }{}
 
 func (f file) URL() *url.URL {
@@ -66,18 +67,21 @@ func (f file) Checksum() (string, string, hash.Hash) {
 	return f.md5, "MD5", md5.New()
 }
 
-func (r Provider) Name() string {
+func (p *Provider) Name() string {
 	return "rapidgator.net"
 }
 
-func (r *Provider) CanResolve(u *url.URL) bool {
-	return strings.HasSuffix(u.Host, "rapidgator.net")
+func (p *Provider) CanResolve(u *url.URL) api.Resolvability {
+	if strings.HasSuffix(u.Host, "rapidgator.net") {
+		return api.Single
+	}
+	return api.Next
 }
 
 func refreshSession(c *http.Client) error {
 	mtx.Lock()
 	defer mtx.Unlock()
-	if session.expires.Before(time.Now()) {
+	if atomic.LoadInt64(&session.expires) < time.Now().Unix() {
 		m, code, err := request(c, fmt.Sprintf(loginURL, user, password))
 		if err != nil {
 			return err
@@ -86,7 +90,7 @@ func refreshSession(c *http.Client) error {
 			return fmt.Errorf("[rapidgator.net] status code %v when getting session key", code)
 		}
 		session.sid = m["session_id"].(string)
-		session.expires = time.Now().Add(5 * time.Minute)
+		atomic.StoreInt64(&session.expires, time.Now().Unix()+5*60)
 	}
 	return nil
 }
@@ -124,31 +128,29 @@ func normalize(u *url.URL) *url.URL {
 	return u
 }
 
-func (r *Provider) Resolve(u *url.URL) (api.File, error) {
-	paths := strings.Split(u.RequestURI(), "/")[1:]
+func (p *Provider) ResolveOne(req api.Request) ([]api.Request, error) {
+	paths := strings.Split(req.URL().RequestURI(), "/")[1:]
 	if paths[0] != "file" {
 		return nil, fmt.Errorf("url doesn't point to a file")
 	}
-	u = normalize(u)
 	c := &http.Client{}
 	// Double check -- because we want to spend as little time as possible in critical section
-	if session.expires.Before(time.Now()) {
+	if atomic.LoadInt64(&session.expires) < time.Now().Unix() {
 		err := refreshSession(c)
 		if err != nil {
 			return nil, err
 		}
 	}
-	f, code, err := request(c, fmt.Sprintf(infoURL, session.sid, u.String()))
+	f, code, err := request(c, fmt.Sprintf(infoURL, session.sid, req.URL().String()))
 	if err != nil {
 		return nil, err
 	}
 	if code != 200 {
 		if code == 404 {
-			return file{p: r, size: api.FileSizeOffline, url: u}, nil
+			return req.Deadend().Wrap(), nil
 		} else if code == 403 { // session expired already?
-			// thread unsafe but we don't care if multiple goroutines invalidate the session
-			session.expires = time.Now().Add(-100 * time.Hour)
-			return r.Resolve(u)
+			atomic.StoreInt64(&session.expires, time.Now().Add(-100*time.Hour).Unix())
+			return p.ResolveOne(req)
 		}
 		return nil, fmt.Errorf("[rapidgator.net] status code %v", code)
 	}
@@ -156,5 +158,6 @@ func (r *Provider) Resolve(u *url.URL) (api.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return file{r, f["filename"].(string), size, f["hash"].(string), u}, nil
+	resolved := file{p, f["filename"].(string), size, f["hash"].(string), normalize(req.URL())}
+	return req.ResolvesTo(resolved).Wrap(), nil
 }

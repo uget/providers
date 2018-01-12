@@ -57,9 +57,9 @@ func (p *Provider) Name() string {
 }
 
 func (p *Provider) CanRetrieve(f api.File) uint {
-	if (&uploaded.Provider{}).CanResolve(f.URL()) ||
-		(&rapidgator.Provider{}).CanResolve(f.URL()) ||
-		(&oboom.Provider{}).CanResolve(f.URL()) {
+	if (&uploaded.Provider{}).CanResolve(f.URL()) != api.Next ||
+		(&rapidgator.Provider{}).CanResolve(f.URL()) != api.Next ||
+		(&oboom.Provider{}).CanResolve(f.URL()) != api.Next {
 		logrus.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
 		for _, acc := range p.accts {
 			account := acc.(*credentials)

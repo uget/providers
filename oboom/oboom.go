@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -65,8 +66,11 @@ func (p *Provider) Name() string {
 	return "oboom.net"
 }
 
-func (p *Provider) CanResolve(u *url.URL) bool {
-	return strings.HasSuffix(u.Host, "oboom.com")
+func (p *Provider) CanResolve(u *url.URL) api.Resolvability {
+	if strings.HasSuffix(u.Host, "oboom.com") {
+		return api.Multi
+	}
+	return api.Next
 }
 
 func refreshSession(c *http.Client) error {
@@ -105,8 +109,8 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	return arr[1], code, nil
 }
 
-func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
-	if len(urls) == 0 {
+func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
+	if len(reqs) == 0 {
 		return nil, fmt.Errorf("no URLs provided")
 	}
 	c := &http.Client{}
@@ -117,12 +121,15 @@ func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 			return nil, err
 		}
 	}
-	ids := make([]string, 0, len(urls))
-	for _, u := range urls {
-		paths := strings.Split(u.RequestURI(), "/")[1:]
+	ids := make([]string, 0, len(reqs))
+	idToIndex := make(map[string]int)
+	for i, req := range reqs {
+		paths := strings.Split(req.URL().RequestURI(), "/")[1:]
 		ids = append(ids, paths[0])
+		idToIndex[paths[0]] = i
 	}
 	body := fmt.Sprintf("token=%s&items=%s&http_errors=0", session.id, strings.Join(ids, ","))
+	logrus.Debugf("oboom#ResolveMany: %v", body)
 	// use POST to not run any risk of 414 Request-URI Too Long
 	req, _ := http.NewRequest("POST", infoURL, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -134,29 +141,30 @@ func (p *Provider) Resolve(urls []*url.URL) ([]api.File, error) {
 		if code == 403 { // session expired already?
 			// thread unsafe but we don't care if multiple goroutines invalidate the session
 			session.expires = time.Now().Add(-100 * time.Hour)
-			return p.Resolve(urls)
+			return p.ResolveMany(reqs)
 		}
 		return nil, fmt.Errorf("[oboom.net] status code %v", code)
 	}
 	arr := i.([]interface{})
-	fs := make([]api.File, 0, len(arr))
+	requests := make([]api.Request, len(arr))
 	for _, m := range arr {
 		record := m.(map[string]interface{})
-		var f api.File
-		u := urlFrom(record["id"].(string))
+		id := record["id"].(string)
+		i := idToIndex[id]
+		u := urlFrom(id)
 		if record["state"] != "online" {
-			f = file{p: p, size: api.FileSizeOffline, url: u}
+			requests[i] = reqs[i].Deadend()
 		} else {
-			f = file{
+			f := file{
 				p:    p,
 				size: int64(record["size"].(float64)),
 				name: record["name"].(string),
 				url:  u,
 			}
+			requests[i] = reqs[i].ResolvesTo(f)
 		}
-		fs = append(fs, f)
 	}
-	return fs, nil
+	return requests, nil
 }
 
 func urlFrom(id string) *url.URL {
