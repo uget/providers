@@ -8,12 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/uget/providers/oboom"
-	"github.com/uget/providers/rapidgator"
-	"github.com/uget/providers/uploaded"
 	api "github.com/uget/uget/core/api"
 )
 
@@ -56,10 +54,38 @@ func (p *Provider) Name() string {
 	return "real-debrid.com"
 }
 
+var domains = []string{}
+var domainsGotten int32
+
+func matches(host string) bool {
+	if atomic.CompareAndSwapInt32(&domainsGotten, 0, 1) {
+		c := &http.Client{}
+		resp, err := c.Get(apiBase + "/hosts/domains")
+		if err != nil {
+			goto DomainsErr
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			goto DomainsErr
+		}
+		err = json.Unmarshal(body, &domains)
+		if err != nil {
+			goto DomainsErr
+		}
+	}
+	for _, domain := range domains {
+		if strings.HasSuffix(host, domain) {
+			return true
+		}
+	}
+	return false
+DomainsErr:
+	atomic.StoreInt32(&domainsGotten, 0)
+	return false
+}
+
 func (p *Provider) CanRetrieve(f api.File) uint {
-	if (&uploaded.Provider{}).CanResolve(f.URL()) != api.Next ||
-		(&rapidgator.Provider{}).CanResolve(f.URL()) != api.Next ||
-		(&oboom.Provider{}).CanResolve(f.URL()) != api.Next {
+	if matches(f.URL().Host) {
 		logrus.Debugf("[real-debrid.com] checking accounts for candidate '%v'", f.URL())
 		for _, acc := range p.accts {
 			account := acc.(*credentials)
