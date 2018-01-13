@@ -92,7 +92,7 @@ func (p *Provider) ResolveMany(rs []api.Request) ([]api.Request, error) {
 		}
 		var f api.File
 		if record[0] == "offline" {
-			requests[i] = rs[i].Deadend()
+			requests[i] = rs[i].Deadend(nil)
 			continue
 		} else if record[0] != "online" {
 			return nil, fmt.Errorf("uploaded.net returned response: %v", record[0])

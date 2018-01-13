@@ -124,7 +124,7 @@ func (p *Provider) ResolveOne(r api.Request) ([]api.Request, error) {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return r.Deadend().Wrap(), nil // 404 => file is offline
+		return r.Deadend(nil).Wrap(), nil // 404 => file is offline
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(resp.Status)
 	}

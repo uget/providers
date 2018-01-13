@@ -147,7 +147,7 @@ func (p *Provider) ResolveOne(req api.Request) ([]api.Request, error) {
 	}
 	if code != 200 {
 		if code == 404 {
-			return req.Deadend().Wrap(), nil
+			return req.Deadend(normalize(req.URL())).Wrap(), nil
 		} else if code == 403 { // session expired already?
 			atomic.StoreInt64(&session.expires, time.Now().Add(-100*time.Hour).Unix())
 			return p.ResolveOne(req)

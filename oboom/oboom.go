@@ -153,7 +153,7 @@ func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
 		i := idToIndex[id]
 		u := urlFrom(id)
 		if record["state"] != "online" {
-			requests[i] = reqs[i].Deadend()
+			requests[i] = reqs[i].Deadend(nil)
 		} else {
 			f := file{
 				p:    p,
