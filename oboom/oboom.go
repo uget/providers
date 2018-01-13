@@ -18,6 +18,7 @@ import (
 // Validations
 
 var _ api.MultiResolver = &Provider{}
+var _ api.SingleResolver = &Provider{}
 
 var _ api.File = file{}
 
@@ -68,6 +69,9 @@ func (p *Provider) Name() string {
 
 func (p *Provider) CanResolve(u *url.URL) api.Resolvability {
 	if strings.HasSuffix(u.Host, "oboom.com") {
+		if strings.HasPrefix(u.Path, "/folder/") {
+			return api.Single
+		}
 		return api.Multi
 	}
 	return api.Next
@@ -107,6 +111,10 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	}
 	code := int(arr[0].(float64))
 	return arr[1], code, nil
+}
+
+func (p *Provider) ResolveOne(req api.Request) ([]api.Request, error) {
+	return nil, api.ErrTODO
 }
 
 func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
@@ -151,10 +159,13 @@ func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
 		record := m.(map[string]interface{})
 		id := record["id"].(string)
 		i := idToIndex[id]
-		u := urlFrom(id)
 		if record["state"] != "online" {
 			requests[i] = reqs[i].Deadend(nil)
+		} else if record["type"] == "folder" {
+			folder, _ := url.Parse("https://oboom.com/folder/" + id)
+			requests[i] = reqs[i].Yields(folder)
 		} else {
+			u := urlFrom(id)
 			f := file{
 				p:    p,
 				size: int64(record["size"].(float64)),
