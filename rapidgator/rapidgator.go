@@ -2,7 +2,9 @@ package rapidgator
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io/ioutil"
@@ -29,7 +31,7 @@ type file struct {
 	p        *Provider
 	filename string
 	size     int64
-	md5      string
+	md5      []byte
 	url      *url.URL
 }
 
@@ -63,7 +65,7 @@ func (f file) Size() int64 {
 	return f.size
 }
 
-func (f file) Checksum() (string, string, hash.Hash) {
+func (f file) Checksum() ([]byte, string, hash.Hash) {
 	return f.md5, "MD5", md5.New()
 }
 
@@ -78,26 +80,32 @@ func (p *Provider) CanResolve(u *url.URL) api.Resolvability {
 	return api.Next
 }
 
-func refreshSession(c *http.Client) error {
+func refreshSession() error {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if atomic.LoadInt64(&session.expires) < time.Now().Unix() {
-		m, code, err := request(c, fmt.Sprintf(loginURL, user, password))
+		raw, code, err := request(fmt.Sprintf(loginURL, user, password))
+		if err != nil {
+			return err
+		}
+		var j struct {
+			SessionID string `json:"session_id"`
+		}
+		err = json.Unmarshal(*raw, &j)
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("[rapidgator.net] status code %v when getting session key", code)
+			return fmt.Errorf("status code %v when getting session key", code)
 		}
-		session.sid = m["session_id"].(string)
+		session.sid = j.SessionID
 		atomic.StoreInt64(&session.expires, time.Now().Unix()+5*60)
 	}
 	return nil
 }
 
-func request(c *http.Client, url string) (map[string]interface{}, int, error) {
-	req, _ := http.NewRequest("GET", url, nil)
-	resp, err := c.Do(req)
+func request(url string) (*json.RawMessage, int, error) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -105,59 +113,63 @@ func request(c *http.Client, url string) (map[string]interface{}, int, error) {
 	if err != nil {
 		return nil, -1, err
 	}
-	m := map[string]interface{}{}
-	err = json.Unmarshal(body, &m)
+	if len(body) == 0 || body[0] == '<' {
+		return nil, -1, errors.New("got non-JSON response")
+	}
+	var j struct {
+		ResponseStatus int `json:"response_status"`
+		Response       *json.RawMessage
+	}
+	err = json.Unmarshal(body, &j)
 	if err != nil {
 		return nil, -1, err
 	}
-	code := int(m["response_status"].(float64))
-	if code == 200 {
-		m = m["response"].(map[string]interface{})
-	}
-	return m, code, nil
-}
-
-func normalize(u *url.URL) *url.URL {
-	htmlExt := ".html"
-	for strings.HasSuffix(u.Path, htmlExt) {
-		u2, _ := url.Parse("/")
-		*u2 = *u
-		u2.Path = u2.Path[0 : len(u2.Path)-len(htmlExt)]
-		u = u2
-	}
-	return u
+	return j.Response, j.ResponseStatus, nil
 }
 
 func (p *Provider) ResolveOne(req api.Request) ([]api.Request, error) {
 	paths := strings.Split(req.URL().RequestURI(), "/")[1:]
+	normalized, _ := url.Parse(fmt.Sprintf("https://rapidgator.net/file/%s", paths[1]))
 	if paths[0] != "file" {
-		return nil, fmt.Errorf("url doesn't point to a file")
+		return req.Errs(normalized, errors.New("url doesn't point to a file")).Wrap(), nil
 	}
-	c := &http.Client{}
 	// Double check -- because we want to spend as little time as possible in critical section
 	if atomic.LoadInt64(&session.expires) < time.Now().Unix() {
-		err := refreshSession(c)
+		err := refreshSession()
 		if err != nil {
-			return nil, err
+			return req.Errs(normalized, err).Wrap(), nil
 		}
 	}
-	f, code, err := request(c, fmt.Sprintf(infoURL, session.sid, req.URL().String()))
+	raw, code, err := request(fmt.Sprintf(infoURL, session.sid, normalized.String()))
 	if err != nil {
-		return nil, err
+		return req.Errs(normalized, err).Wrap(), nil
 	}
 	if code != 200 {
 		if code == 404 {
-			return req.Deadend(normalize(req.URL())).Wrap(), nil
+			return req.Deadend(normalized).Wrap(), nil
 		} else if code == 403 { // session expired already?
 			atomic.StoreInt64(&session.expires, time.Now().Add(-100*time.Hour).Unix())
 			return p.ResolveOne(req)
 		}
-		return nil, fmt.Errorf("[rapidgator.net] status code %v", code)
+		return req.Errs(normalized, fmt.Errorf("status code %v", code)).Wrap(), nil
 	}
-	size, err := strconv.ParseInt(f["size"].(string), 10, 0)
+	var j struct {
+		Filename string
+		Size     string
+		Hash     string
+	}
+	err = json.Unmarshal(*raw, &j)
 	if err != nil {
-		return nil, err
+		return req.Errs(normalized, err).Wrap(), nil
 	}
-	resolved := file{p, f["filename"].(string), size, f["hash"].(string), normalize(req.URL())}
+	size, err := strconv.ParseInt(j.Size, 10, 0)
+	if err != nil {
+		return req.Errs(normalized, err).Wrap(), nil
+	}
+	bs, err := hex.DecodeString(j.Hash)
+	if err != nil {
+		return req.Errs(normalized, err).Wrap(), nil
+	}
+	resolved := file{p, j.Filename, size, bs, normalized}
 	return req.ResolvesTo(resolved).Wrap(), nil
 }

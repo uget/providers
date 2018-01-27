@@ -100,8 +100,8 @@ func (f file) Size() int64 {
 	return f.length
 }
 
-func (f file) Checksum() (string, string, hash.Hash) {
-	return "", "", nil
+func (f file) Checksum() ([]byte, string, hash.Hash) {
+	return nil, "", nil
 }
 
 func (p *Provider) CanRetrieve(api.File) uint {

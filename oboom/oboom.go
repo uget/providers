@@ -59,8 +59,8 @@ func (f file) Size() int64 {
 	return f.size
 }
 
-func (f file) Checksum() (string, string, hash.Hash) {
-	return "", "", nil
+func (f file) Checksum() ([]byte, string, hash.Hash) {
+	return nil, "", nil
 }
 
 func (p *Provider) Name() string {
@@ -77,26 +77,33 @@ func (p *Provider) CanResolve(u *url.URL) api.Resolvability {
 	return api.Next
 }
 
-func refreshSession(c *http.Client) error {
+func refreshSession() error {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if session.expires.Before(time.Now()) {
 		req, _ := http.NewRequest("GET", loginURL, nil)
-		sid, code, err := request(c, req)
+		raw, code, err := request(req)
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("[oboom.net] status code %v when getting session key", code)
 		}
-		session.id = sid.(string)
+		var sid string
+		err = json.Unmarshal(*raw, &sid)
+		if err != nil {
+			return err
+		}
+		session.id = sid
 		session.expires = time.Now().Add(23 * time.Hour)
 	}
 	return nil
 }
 
-func request(c *http.Client, req *http.Request) (interface{}, int, error) {
-	resp, err := c.Do(req)
+var client = &http.Client{}
+
+func request(req *http.Request) (*json.RawMessage, int, error) {
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -104,12 +111,16 @@ func request(c *http.Client, req *http.Request) (interface{}, int, error) {
 	if err != nil {
 		return nil, -1, err
 	}
-	var arr []interface{}
+	var arr []*json.RawMessage
 	err = json.Unmarshal(rbody, &arr)
 	if err != nil {
 		return nil, -1, err
 	}
-	code := int(arr[0].(float64))
+	var code int
+	err = json.Unmarshal(*arr[0], &code)
+	if err != nil {
+		return nil, -1, err
+	}
 	return arr[1], code, nil
 }
 
@@ -121,10 +132,9 @@ func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
 	if len(reqs) == 0 {
 		return nil, fmt.Errorf("no URLs provided")
 	}
-	c := &http.Client{}
 	// Double check -- because we want to spend as little time as possible in critical section
 	if session.expires.Before(time.Now()) {
-		err := refreshSession(c)
+		err := refreshSession()
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +151,7 @@ func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
 	// use POST to not run any risk of 414 Request-URI Too Long
 	req, _ := http.NewRequest("POST", infoURL, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	i, code, err := request(c, req)
+	raw, code, err := request(req)
 	if err != nil {
 		return nil, err
 	}
@@ -153,26 +163,34 @@ func (p *Provider) ResolveMany(reqs []api.Request) ([]api.Request, error) {
 		}
 		return nil, fmt.Errorf("[oboom.net] status code %v", code)
 	}
-	arr := i.([]interface{})
-	requests := make([]api.Request, len(arr))
-	for _, m := range arr {
-		record := m.(map[string]interface{})
-		id := record["id"].(string)
-		i := idToIndex[id]
-		if record["state"] != "online" {
+	var files []struct {
+		ID    string
+		State string
+		Type  string
+		Size  int64
+		Name  string
+	}
+	err = json.Unmarshal(*raw, &files)
+	if err != nil {
+		return nil, err
+	}
+	requests := make([]api.Request, len(files))
+	for _, f := range files {
+		i := idToIndex[f.ID]
+		if f.State != "online" {
 			requests[i] = reqs[i].Deadend(nil)
-		} else if record["type"] == "folder" {
-			folder, _ := url.Parse("https://oboom.com/folder/" + id)
+		} else if f.Type == "folder" {
+			folder, _ := url.Parse("https://oboom.com/folder/" + f.ID)
 			requests[i] = reqs[i].Yields(folder)
 		} else {
-			u := urlFrom(id)
-			f := file{
+			u := urlFrom(f.ID)
+			apiFile := file{
 				p:    p,
-				size: int64(record["size"].(float64)),
-				name: record["name"].(string),
+				size: f.Size,
+				name: f.Name,
 				url:  u,
 			}
-			requests[i] = reqs[i].ResolvesTo(f)
+			requests[i] = reqs[i].ResolvesTo(apiFile)
 		}
 	}
 	return requests, nil

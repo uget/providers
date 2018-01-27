@@ -11,16 +11,14 @@ import (
 var _ api.File = file{}
 
 type file struct {
-	p      *Provider
-	id     string
-	length int64
-	sha1   string
-	name   string
-	url    *url.URL
+	size int64
+	sha1 []byte
+	name string
+	url  *url.URL
 }
 
 func (f file) Provider() api.Provider {
-	return f.p
+	return &Provider{}
 }
 
 func (f file) URL() *url.URL {
@@ -32,9 +30,9 @@ func (f file) Name() string {
 }
 
 func (f file) Size() int64 {
-	return f.length
+	return f.size
 }
 
-func (f file) Checksum() (string, string, hash.Hash) {
+func (f file) Checksum() ([]byte, string, hash.Hash) {
 	return f.sha1, "SHA1", sha1.New()
 }

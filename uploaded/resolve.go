@@ -2,6 +2,7 @@ package uploaded
 
 import (
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,8 +58,7 @@ func (p *Provider) ResolveOne(r api.Request) ([]api.Request, error) {
 func (p *Provider) ResolveMany(rs []api.Request) ([]api.Request, error) {
 	logrus.Debugf("uploaded#ResolveMany: %v", len(rs))
 	body := fmt.Sprintf("apikey=%s", apikey)
-	i := 0
-	for _, r := range rs {
+	for i, r := range rs {
 		paths := strings.Split(r.URL().RequestURI(), "/")[1:]
 		id := ""
 		if paths[0] == "file" {
@@ -72,7 +72,6 @@ func (p *Provider) ResolveMany(rs []api.Request) ([]api.Request, error) {
 			return nil, fmt.Errorf("can't handle %v", r.URL())
 		}
 		body += fmt.Sprintf("&id_%d=%s", i, id)
-		i++
 	}
 	req, _ := http.NewRequest("POST", "https://uploaded.net/api/filemultiple", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -90,19 +89,22 @@ func (p *Provider) ResolveMany(rs []api.Request) ([]api.Request, error) {
 			}
 			return nil, fmt.Errorf("csv: %v", err)
 		}
-		var f api.File
 		if record[0] == "offline" {
 			requests[i] = rs[i].Deadend(nil)
-			continue
 		} else if record[0] != "online" {
-			return nil, fmt.Errorf("uploaded.net returned response: %v", record[0])
-		}
-		if len, err := strconv.ParseInt(record[2], 10, 0); err == nil {
-			id := record[1]
-			f = file{p, id, len, record[3], record[4], urlFrom(id)}
+			requests[i] = rs[i].Errs(nil, fmt.Errorf("unknown file status: %v", record[0]))
 		} else {
-			return nil, err
+			u := urlFrom(record[1])
+			if len, err := strconv.ParseInt(record[2], 10, 0); err == nil {
+				bs, err := hex.DecodeString(record[3])
+				if err != nil {
+					requests[i] = rs[i].Errs(u, err)
+				} else {
+					requests[i] = rs[i].ResolvesTo(file{len, bs, record[4], u})
+				}
+			} else {
+				requests[i] = rs[i].Errs(u, err)
+			}
 		}
-		requests[i] = rs[i].ResolvesTo(f)
 	}
 }
